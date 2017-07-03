@@ -1,0 +1,11 @@
+[package]
+name = "simpleserver"
+version = "0.1.0"
+authors = ["steveklabnik <steve@steveklabnik.com>"]
+
+[dependencies]
+scoped_threadpool = "0.1.7"
+
+
+[dependencies.http]
+path = "http"
