@@ -1,3 +1,6 @@
+//! The `simple-server` crate is designed to give you the tools to
+// to build an HTTP server, based around blocking I/O plus a threadpool.
+
 extern crate http;
 extern crate scoped_threadpool;
 
@@ -8,12 +11,18 @@ use scoped_threadpool::Pool;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 
+/// Represents a server. 
+///
+/// | Member    | Type                                       | Notes                                                               |
+/// |-----------|--------------------------------------------|---------------------------------------------------------------------|
+/// | `handler` | `fn(Request<&[u8]>, &mut Response<&[u8]>)` | This function uses Types that are re-exported from the `http` crate |
 pub struct Server {
     handler: fn(Request<&[u8]>, &mut Response<&[u8]>),
 }
 
 
 impl Server {
+    /// Constructs a new server.
     pub fn new(handler: fn(Request<&[u8]>, &mut Response<&[u8]>)) -> Server {
         Server { handler }
     }
@@ -30,6 +39,7 @@ impl Server {
         write_response(response, stream);
     }
 
+    /// Tells the server to listen on a specified host and port.
     pub fn listen(&self, host: &str, port: &str) {
         let mut pool = Pool::new(4);
         let listener = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
