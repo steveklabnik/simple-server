@@ -1,7 +1,11 @@
 extern crate http;
+extern crate httparse;
 extern crate scoped_threadpool;
 
-pub use http::{request, Request, response, Response};
+pub use http::{status, method, Request, Response};
+
+use http::{request, HeaderMap};
+use http::header::HeaderValue;
 
 use scoped_threadpool::Pool;
 
@@ -23,7 +27,6 @@ impl Server {
 
         stream.read(&mut buffer).unwrap();
 
-        println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
         let request = parse_request(&buffer);
         let mut response = Response::default();
         (self.handler)(request, &mut response);
@@ -59,8 +62,28 @@ fn write_response(response: Response<&[u8]>, mut stream: TcpStream) {
 }
 
 fn parse_request(raw_request: &[u8]) -> Request<&[u8]> {
-    let head = request::Head::default();
-    let request = Request::from_parts(head, "hello world".as_bytes());
+    let mut headers = [httparse::EMPTY_HEADER; 16];
+    let mut req = httparse::Request::new(&mut headers);
+
+    let header_length = req.parse(raw_request).unwrap().unwrap() as usize;
+
+    let mut head = request::Head::default();
+    let mut header_map = HeaderMap::new();
+
+    for header in req.headers {
+        header_map.insert(
+            header.name,
+            HeaderValue::try_from_bytes(header.value).unwrap(),
+        );
+    }
+
+    head.headers = header_map;
+
+    let body = &raw_request[header_length..];
+
+    let mut request = Request::from_parts(head, body);
+    let path = req.path.unwrap();
+    *request.uri_mut() = path.parse().unwrap();
 
     request
 }
