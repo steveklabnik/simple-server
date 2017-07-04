@@ -14,10 +14,9 @@ fn main() {
                 *response.body_mut() = "<h1>Hi!</h1><p>Hello Rust!</p>".as_bytes();
             }
             (_, _) => {
-                *response.status_mut() = simple_server::status::OK;
+                *response.status_mut() = simple_server::status::NOT_FOUND;
                 *response.body_mut() = "<h1>404</h1><p>Not found!<p>".as_bytes();
             }
-
         }
     };
 
