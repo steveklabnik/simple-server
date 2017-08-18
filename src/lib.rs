@@ -6,6 +6,7 @@ extern crate httparse;
 extern crate scoped_threadpool;
 
 pub use http::{response, status, method, Request, Response};
+use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
 
@@ -18,13 +19,13 @@ use std::net::{TcpListener, TcpStream};
 /// |-----------|--------------------------------------------|---------------------------------------------------------------------|
 /// | `handler` | `fn(Request<&[u8]>, &mut Response<&[u8]>)` | This function uses Types that are re-exported from the `http` crate |
 pub struct Server {
-    handler: fn(Request<&[u8]>, http::response::Builder) -> Response<&[u8]>,
+    handler: fn(Request<&[u8]>, ResponseBuilder) -> Response<&[u8]>,
 }
 
 
 impl Server {
     /// Constructs a new server.
-    pub fn new(handler: fn(Request<&[u8]>, http::response::Builder) -> Response<&[u8]>) -> Server {
+    pub fn new(handler: fn(Request<&[u8]>, ResponseBuilder) -> Response<&[u8]>) -> Server {
         Server { handler }
     }
 
