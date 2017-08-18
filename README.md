@@ -2,6 +2,8 @@
 
 > a crate for building a simple blocking HTTP server
 
+[![Build Status](https://travis-ci.org/steveklabnik/simple-server.svg?branch=master)](https://travis-ci.org/steveklabnik/simple-server)
+
 ## up and running
 
 this crate is written in [the rust programming language]. you'll need rust to run
