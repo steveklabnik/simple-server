@@ -10,5 +10,5 @@ fn test_new() {
         response_builder.body("Hello Rust!".as_bytes()).unwrap()
     };
 
-    let _server = Server::new(handler);
+    Server::new(handler);
 }
