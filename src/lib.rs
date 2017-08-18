@@ -7,9 +7,6 @@ extern crate scoped_threadpool;
 
 pub use http::{status, method, Request, Response};
 
-use http::{request, HeaderMap};
-use http::header::HeaderValue;
-
 use scoped_threadpool::Pool;
 
 use std::io::prelude::*;
@@ -77,21 +74,14 @@ fn parse_request(raw_request: &[u8]) -> Request<&[u8]> {
 
     let header_length = req.parse(raw_request).unwrap().unwrap() as usize;
 
-    let mut head = request::Head::default();
-    let mut header_map = HeaderMap::new();
+    let body = &raw_request[header_length..];
+    let mut http_req = Request::builder();
 
     for header in req.headers {
-        header_map.insert(
-            header.name,
-            HeaderValue::try_from_bytes(header.value).unwrap(),
-        );
+        http_req.header(header.name, header.value);
     }
 
-    head.headers = header_map;
-
-    let body = &raw_request[header_length..];
-
-    let mut request = Request::from_parts(head, body);
+    let mut request = http_req.body(body).unwrap();
     let path = req.path.unwrap();
     *request.uri_mut() = path.parse().unwrap();
 
