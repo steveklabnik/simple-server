@@ -33,6 +33,14 @@ to test this crate locally, run:
 cargo test
 ```
 
+## docs
+
+this crate has documentation. to build and open the docs locally:
+
+```
+cargo doc --open
+```
+
 ## example
 
 an example is provided with this crate. to run the example:
