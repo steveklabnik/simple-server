@@ -1,8 +1,7 @@
 extern crate simple_server;
-extern crate http;
 
 use simple_server::{Server, Request, Response};
-use http::response::Builder as ResponseBuilder;
+use simple_server::response::Builder as ResponseBuilder;
 
 fn main() {
     let host = "127.0.0.1";

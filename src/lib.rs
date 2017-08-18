@@ -5,7 +5,7 @@ extern crate http;
 extern crate httparse;
 extern crate scoped_threadpool;
 
-pub use http::{status, method, Request, Response};
+pub use http::{response, status, method, Request, Response};
 
 use scoped_threadpool::Pool;
 
