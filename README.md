@@ -25,6 +25,14 @@ to see this crate in action, check out the [example].
 [rustup]: https://www.rustup.rs/
 [example]: #example
 
+## tests
+
+to test this crate locally, run:
+
+```
+cargo test
+```
+
 ## docs
 
 this crate has documentation. to build and open the docs locally:
