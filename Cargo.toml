@@ -3,6 +3,13 @@ name = "simple-server"
 version = "0.1.0"
 license = "MIT/Apache-2.0"
 authors = ["steveklabnik <steve@steveklabnik.com>", "ashleygwilliams <ashley666ashley@gmail.com>"]
+description = "a simple webserver."
+repository = "https://github.com/steveklabnik/simple-server"
+readme = "README.md"
+categories = ["web-programming"]
+
+[badges]
+travis-ci = { repository = "steveklabnik/simple-server" }
 
 [dependencies]
 http = "0.1.0"
