@@ -7,7 +7,8 @@
 ## up and running
 
 this crate is written in [the rust programming language]. you'll need rust to run
-this crate. you can install rust using [rustup].
+this crate. you can install rust using [rustup]. `simple-server` requires that you
+use **rust version 1.20+**.
 
 to get this crate running locally:
 
