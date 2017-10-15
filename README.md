@@ -60,14 +60,14 @@ need to do one of the following depending on your system:
 on Linux/OS X:
 
 ```bash
-$ RUST_LOG="simple_server=info" cargo run --example simple-server
+RUST_LOG="simple_server=info" cargo run --example simple-server
 ```
 
 on Windows PowerShell:
 
 ```ps
-> $env:RUST_LOG="simple_server=info";
-> cargo run --example simple-server
+$env:RUST_LOG="simple_server=info";
+cargo run --example simple-server
 ```
 
 [log]: https://crates.io/crates/log
