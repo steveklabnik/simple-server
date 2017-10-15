@@ -9,3 +9,6 @@ http = "0.1.0"
 httparse = "1.2.3"
 log = "0.3"
 scoped_threadpool = "0.1.7"
+
+[dev-dependencies]
+env_logger = "0.3"
