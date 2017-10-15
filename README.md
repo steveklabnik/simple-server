@@ -22,11 +22,11 @@ to use this crate in your project, add the following line to your `Cargo.toml`:
 "simple-server" = "https://github.com/steveklabnik/simple-server.git"
 ```
 
-to see this crate in action, check out the [example].
+to see this crate in action, check out the [examples].
 
 [the rust programming language]: https://www.rust-lang.org
 [rustup]: https://www.rustup.rs/
-[example]: #example
+[examples]: #examples
 
 ## tests
 
@@ -44,12 +44,17 @@ this crate has documentation. to build and open the docs locally:
 cargo doc --open
 ```
 
-## example
+## examples
 
-an example is provided with this crate. to run the example:
+there are several examples provided with this crate:
+
+- [server](https://github.com/steveklabnik/simple-server/blob/c5499dc64def427d30d613c2087bec46072c4110/examples/server.rs)
+- [routes](https://github.com/steveklabnik/simple-server/blob/c5499dc64def427d30d613c2087bec46072c4110/examples/routes.rs)
+
+to run an example:
 
 ```bash
-cargo run --example simple-server
+cargo run --example <name of example>
 ```
 
 this crate uses the [log] crate for logging. in the example, we use the
@@ -60,14 +65,14 @@ need to do one of the following depending on your system:
 on Linux/OS X:
 
 ```bash
-RUST_LOG="simple_server=info" cargo run --example simple-server
+RUST_LOG="simple_server=info" cargo run --example server
 ```
 
 on Windows PowerShell:
 
 ```ps
 $env:RUST_LOG="simple_server=info";
-cargo run --example simple-server
+cargo run --example server
 ```
 
 [log]: https://crates.io/crates/log
