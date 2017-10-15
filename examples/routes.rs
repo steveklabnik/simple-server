@@ -1,28 +1,24 @@
 extern crate simple_server;
 
-use simple_server::{Server, Request, Response, StatusCode};
-use simple_server::response::Builder as ResponseBuilder;
-use simple_server::Method;
+use simple_server::{Server, Method, StatusCode};
 
 fn main() {
     let host = "127.0.0.1";
     let port = "7878";
 
-    fn handler(request: Request<&[u8]>, mut response_builder: ResponseBuilder) -> Response<&[u8]> {
+    let server = Server::new(|request, mut response| {
         println!("Request received. {} {}", request.method(), request.uri());
 
         match (request.method(), request.uri().path()) {
             (&Method::GET, "/hello") => {
-                response_builder.body("<h1>Hi!</h1><p>Hello Rust!</p>".as_bytes()).unwrap()
+                Ok(response.body("<h1>Hi!</h1><p>Hello Rust!</p>".as_bytes())?)
             }
             (_, _) => {
-                response_builder.status(StatusCode::NOT_FOUND);
-                response_builder.body("<h1>404</h1><p>Not found!<p>".as_bytes()).unwrap()
+                response.status(StatusCode::NOT_FOUND);
+                Ok(response.body("<h1>404</h1><p>Not found!<p>".as_bytes())?)
             }
         }
-    };
+    });
 
-    let server = Server::new(handler);
-
-    server.listen(host, port)
+    server.listen(host, port);
 }

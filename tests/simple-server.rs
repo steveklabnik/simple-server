@@ -1,14 +1,21 @@
 extern crate simple_server;
-extern crate http;
 
-use simple_server::{Server, Request, Response};
-use http::response::Builder as ResponseBuilder;
+use simple_server::Server;
 
 #[test]
-fn test_new() {
-    fn handler(_request: Request<&[u8]>, mut response_builder: ResponseBuilder) -> Response<&[u8]> {
-        response_builder.body("Hello Rust!".as_bytes()).unwrap()
-    };
+fn test_server_new() {
+    Server::new(|_request, mut response| {
+        Ok(response.body("Hello Rust!".as_bytes())?)
+    });
+}
 
-    Server::new(handler);
+#[test]
+fn test_error_fallback() {
+    Server::new(|_request, mut response| {
+        // set an invalid header
+        response.header("Foo", "Bar\r\n");
+
+        // this will then fail
+        response.body("".as_bytes())
+    });
 }

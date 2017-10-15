@@ -6,6 +6,7 @@ extern crate httparse;
 extern crate scoped_threadpool;
 
 pub use http::{response, status, Request, Response};
+pub use http::Error;
 pub use http::status::StatusCode;
 pub use http::method::Method;
 use http::response::Builder as ResponseBuilder;
@@ -23,13 +24,13 @@ use std::path::Path;
 /// |-----------|--------------------------------------------|---------------------------------------------------------------------|
 /// | `handler` | `fn(Request<&[u8]>, &mut Response<&[u8]>)` | This function uses Types that are re-exported from the `http` crate |
 pub struct Server {
-    handler: fn(Request<&[u8]>, ResponseBuilder) -> Response<&[u8]>,
+    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, http::Error>,
 }
 
 
 impl Server {
     /// Constructs a new server.
-    pub fn new(handler: fn(Request<&[u8]>, ResponseBuilder) -> Response<&[u8]>) -> Server {
+    pub fn new(handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>) -> Server {
         Server { handler }
     }
 
@@ -68,7 +69,13 @@ impl Server {
             return;
         }
 
-        let response = (self.handler)(request, response_builder);
+        let response = (self.handler)(request, response_builder).unwrap_or_else(|_| {
+            let mut response_builder = Response::builder();
+            response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
+
+            response_builder.body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes()).unwrap()
+        });
+
         write_response(response, stream);
     }
 
