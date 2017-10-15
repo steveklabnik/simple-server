@@ -175,7 +175,7 @@ To contribute code:
 * Write tests that verify that your contribution works as expected.
 * Write clear, concise commit message(s) using [conventional-changelog
   format](https://github.com/conventional-changelog/conventional-changelog-angular/blob/master/convention.md).
-* Go to https://github.com/wealljs/weallcontribute/pulls and open a new pull
+* Go to https://github.com/steveklabnik/simple-server/pulls and open a new pull
   request with your changes.
 * If your PR is connected to an open issue, add a line in your PR's description
   that says `Fixes: #123`, where `#123` is the number of the issue you're
