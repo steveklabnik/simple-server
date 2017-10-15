@@ -10,8 +10,10 @@ use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
 
+use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
 
 /// Represents a server. 
 ///
@@ -35,7 +37,35 @@ impl Server {
         stream.read(&mut buffer).unwrap();
 
         let request = parse_request(&buffer);
-        let response_builder = Response::builder();
+        let mut response_builder = Response::builder();
+
+        // first, we serve static files
+        let fs_path = format!("public{}", request.uri());
+
+        // ... you trying to do something bad?
+        if fs_path.contains("./") || fs_path.contains("../") {
+            // GET OUT
+            response_builder.status(status::NOT_FOUND);
+
+            let response = response_builder.body("<h1>404</h1><p>Not found!<p>".as_bytes()).unwrap();
+
+            write_response(response, stream);
+            return;
+        }
+
+        if Path::new(&fs_path).is_file() {
+            let mut f = File::open(&fs_path).unwrap();
+
+            let mut source = Vec::new();
+
+            f.read_to_end(&mut source).unwrap();
+
+            let response = response_builder.body(&*source).unwrap();
+
+            write_response(response, stream);
+            return;
+        }
+
         let response = (self.handler)(request, response_builder);
         write_response(response, stream);
     }
