@@ -7,6 +7,11 @@ rust:
   - stable
   - beta
   - nightly
+before_install:
+  - bash ./ci-scripts/rustfmt.sh
+
+script:
+  - cargo fmt -- --write-mode diff
 matrix:
   allow_failures:
     - rust: nightly
