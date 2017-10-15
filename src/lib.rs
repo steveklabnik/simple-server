@@ -1,6 +1,9 @@
 //! The `simple-server` crate is designed to give you the tools to
 // to build an HTTP server, based around blocking I/O plus a threadpool.
 
+#[macro_use]
+extern crate log;
+
 extern crate http;
 extern crate httparse;
 extern crate scoped_threadpool;
@@ -90,7 +93,7 @@ impl Server {
         let listener =
             TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
 
-        println!("Server started at http://{}:{}", host, port);
+        info!("Server started at http://{}:{}", host, port);
 
         for stream in listener.incoming() {
             let stream = stream.expect("Error handling TCP stream.");
