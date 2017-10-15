@@ -18,7 +18,7 @@ to get this crate running locally:
 
 to use this crate in your project, add the following line to your `Cargo.toml`:
 
-```
+```toml
 "simple-server" = "https://github.com/steveklabnik/simple-server.git"
 ```
 
@@ -32,7 +32,7 @@ to see this crate in action, check out the [example].
 
 to test this crate locally, run:
 
-```
+```bash
 cargo test
 ```
 
@@ -40,7 +40,7 @@ cargo test
 
 this crate has documentation. to build and open the docs locally:
 
-```
+```bash
 cargo doc --open
 ```
 
@@ -48,7 +48,7 @@ cargo doc --open
 
 an example is provided with this crate. to run the example:
 
-```
+```bash
 cargo run --example simple-server
 ```
 
