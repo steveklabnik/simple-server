@@ -3,6 +3,7 @@
 > a crate for building a simple blocking HTTP server
 
 [![Build Status](https://travis-ci.org/steveklabnik/simple-server.svg?branch=master)](https://travis-ci.org/steveklabnik/simple-server)
+[![crates.io](https://img.shields.io/crates/v/simple-server.svg)](https://crates.io/crates/simple-server)
 
 ## up and running
 
@@ -16,10 +17,11 @@ to get this crate running locally:
 2. `cd simple-server`
 3. `cargo build`
 
-to use this crate in your project, add the following line to your `Cargo.toml`:
+to use this crate in your project, add the following line to your `Cargo.toml`
+in the `[dependencies]` section:
 
 ```toml
-"simple-server" = "https://github.com/steveklabnik/simple-server.git"
+simple-server = "0.1.0"
 ```
 
 to see this crate in action, check out the [examples].
