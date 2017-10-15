@@ -5,6 +5,9 @@
 [![Build Status](https://travis-ci.org/steveklabnik/simple-server.svg?branch=master)](https://travis-ci.org/steveklabnik/simple-server)
 [![crates.io](https://img.shields.io/crates/v/simple-server.svg)](https://crates.io/crates/simple-server)
 
+**NOTE**: this crate has not been evaluated for security concerns. therefore, we recommend
+that you take caution before using it in a production application.
+
 ## up and running
 
 this crate is written in [the rust programming language]. you'll need rust to run
