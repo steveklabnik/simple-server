@@ -1,8 +1,8 @@
 [package]
 name = "simple-server"
 version = "0.1.0"
-authors = ["steveklabnik <steve@steveklabnik.com>"]
 license = "MIT/Apache-2.0"
+authors = ["steveklabnik <steve@steveklabnik.com>", "ashleygwilliams <ashley666ashley@gmail.com>"]
 
 [dependencies]
 scoped_threadpool = "0.1.7"
