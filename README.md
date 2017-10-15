@@ -52,7 +52,7 @@ an example is provided with this crate. to run the example:
 cargo run --example simple-server
 ```
 
-this crate uses the [log crate] for logging. in the example, we use the
+this crate uses the [log] crate for logging. in the example, we use the
 [env-logger] crate to display the logs. by default, [env-logger] only
 prints out error-level logs. to enable info-level logging as well, you'll
 need to do one of the following depending on your system:
@@ -69,6 +69,9 @@ on Windows PowerShell:
 > $env:RUST_LOG="simple_server=info";
 > cargo run --example simple-server
 ```
+
+[log]: https://crates.io/crates/log
+[env-logger]: https://crates.io/crates/env-logger
 
 ## license
 
