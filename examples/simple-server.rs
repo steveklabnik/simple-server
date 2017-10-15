@@ -1,13 +1,19 @@
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
 extern crate simple_server;
 
 use simple_server::Server;
 
 fn main() {
+    env_logger::init().unwrap();
+
     let host = "127.0.0.1";
     let port = "7878";
 
     let server = Server::new(|request, mut response| {
-        println!("Request received. {} {}", request.method(), request.uri());
+        info!("Request received. {} {}", request.method(), request.uri());
         Ok(response.body("Hello Rust!".as_bytes())?)
     });
 
