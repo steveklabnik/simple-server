@@ -16,6 +16,6 @@ fn test_error_fallback() {
         response.header("Foo", "Bar\r\n");
 
         // this will then fail
-        response.body("".as_bytes())
+        Ok(response.body("".as_bytes())?)
     });
 }
