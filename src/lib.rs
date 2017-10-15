@@ -22,10 +22,6 @@ mod error;
 use error::Error;
 
 /// Represents a server.
-///
-/// | Member    | Type                                       | Notes                                                               |
-/// |-----------|--------------------------------------------|---------------------------------------------------------------------|
-/// | `handler` | `fn(Request<&[u8]>, &mut Response<&[u8]>)` | This function uses Types that are re-exported from the `http` crate |
 pub struct Server {
     handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
 }
