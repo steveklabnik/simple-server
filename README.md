@@ -51,3 +51,7 @@ an example is provided with this crate. to run the example:
 ```
 cargo run --example simple-server
 ```
+
+## license
+
+`simple-server` is licensed under both the Apache2 and MIT licenses.
