@@ -6,6 +6,4 @@ authors = ["steveklabnik <steve@steveklabnik.com>"]
 [dependencies]
 scoped_threadpool = "0.1.7"
 httparse = "1.2.3"
-
-[dependencies.http]
-git = "https://github.com/carllerche/http"
+http = "0.1.0"

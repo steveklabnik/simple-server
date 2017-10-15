@@ -6,6 +6,7 @@ extern crate httparse;
 extern crate scoped_threadpool;
 
 pub use http::{response, status, method, Request, Response};
+pub use http::status::StatusCode;
 use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
@@ -45,7 +46,7 @@ impl Server {
         // ... you trying to do something bad?
         if fs_path.contains("./") || fs_path.contains("../") {
             // GET OUT
-            response_builder.status(status::NOT_FOUND);
+            response_builder.status(StatusCode::NOT_FOUND);
 
             let response = response_builder.body("<h1>404</h1><p>Not found!<p>".as_bytes()).unwrap();
 
