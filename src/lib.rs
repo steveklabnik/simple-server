@@ -1,5 +1,27 @@
-//! The `simple-server` crate is designed to give you the tools to
-// to build an HTTP server, based around blocking I/O plus a threadpool.
+//! A simple webserver.
+//!
+//! The `simple-server` crate is designed to give you the tools to to build
+//! an HTTP server, based around the http crate, blocking I/O, and a
+//! threadpool.
+//!
+//! We call it 'simple' want to keep the code small, and easy to
+//! understand. This is why we're only using blocking I/O. Depending on
+//! your needs, you may or may not want to choose another server.
+//! However, just the simple stuff is often enough for many projects.
+//!
+//! # Examples
+//!
+//! At its core, `simple-server` contains a `Server`. The `Server` is
+//! passed a handler upon creation, and the `listen` method is used
+//! to start handling connections.
+//!
+//! The other types are from the `http` crate, and give you the ability
+//! to work with various aspects of HTTP. The `Request`, `Response`, and
+//! `ResponseBuilder` types are used by the handler you give to `Server`,
+//! for example.
+//!
+//! To see examples of this crate in use, please consult the `examples`
+//! directory.
 
 #[macro_use]
 extern crate log;
@@ -8,7 +30,8 @@ extern crate http;
 extern crate httparse;
 extern crate scoped_threadpool;
 
-pub use http::{response, Request, Response};
+pub use http::Request;
+pub use http::response::{Builder, Response, Parts};
 pub use http::status::{InvalidStatusCode, StatusCode};
 pub use http::method::Method;
 use http::response::Builder as ResponseBuilder;
@@ -22,20 +45,95 @@ use std::path::Path;
 
 mod error;
 
-use error::Error;
+pub use error::Error;
 
-/// Represents a server.
+/// A web server.
+///
+/// This is the core type of this crate, and is used to create a new
+/// server and listen for connections.
 pub struct Server {
     handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
 }
 
 
 impl Server {
-    /// Constructs a new server.
+    /// Constructs a new server with the given handler.
+    ///
+    /// The handler function is called on all requests.
+    ///
+    /// # Errors
+    ///
+    /// The handler function returns a `Result` so that you may use `?` to
+    /// handle errors. If a handler returns an `Err`, a 500 will be shown.
+    ///
+    /// If you'd like behavior other than that, return an `Ok(Response)` with
+    /// the proper error code. In other words, this behavior is to gracefully
+    /// handle errors you don't care about, not for properly handling
+    /// non-`HTTP 200` responses.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///     });
+    /// }
+    /// ```
     pub fn new(
         handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
     ) -> Server {
         Server { handler }
+    }
+
+    /// Tells the server to listen on a specified host and port.
+    ///
+    /// A threadpool is created, and used to handle connections.
+    /// The pool size is four threads.
+    ///
+    /// This method blocks forever.
+    ///
+    /// The `listen` method will also serve static files out of a `public`
+    /// directory in the same directory as where it's run. If someone tries
+    /// a path directory traversal attack, this will return a `404`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///     });
+    ///
+    ///     server.listen("127.0.0.1", "7979");
+    /// }
+    /// ```
+    pub fn listen(&self, host: &str, port: &str) {
+        let mut pool = Pool::new(4);
+        let listener =
+            TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
+
+        info!("Server started at http://{}:{}", host, port);
+
+        for stream in listener.incoming() {
+            let stream = stream.expect("Error handling TCP stream.");
+
+            pool.scoped(|scope| {
+                scope.execute(|| {
+                    self.handle_connection(stream).expect(
+                        "Error handling connection.",
+                    );
+                });
+            });
+        }
     }
 
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
@@ -85,27 +183,6 @@ impl Server {
         });
 
         Ok(write_response(response, stream)?)
-    }
-
-    /// Tells the server to listen on a specified host and port.
-    pub fn listen(&self, host: &str, port: &str) {
-        let mut pool = Pool::new(4);
-        let listener =
-            TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
-
-        info!("Server started at http://{}:{}", host, port);
-
-        for stream in listener.incoming() {
-            let stream = stream.expect("Error handling TCP stream.");
-
-            pool.scoped(|scope| {
-                scope.execute(|| {
-                    self.handle_connection(stream).expect(
-                        "Error handling connection.",
-                    );
-                });
-            });
-        }
     }
 }
 
