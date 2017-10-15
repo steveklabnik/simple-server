@@ -3,6 +3,7 @@
 > a crate for building a simple blocking HTTP server
 
 [![Build Status](https://travis-ci.org/steveklabnik/simple-server.svg?branch=master)](https://travis-ci.org/steveklabnik/simple-server)
+[![crates.io](https://img.shields.io/crates/v/simple-server.svg)](https://crates.io/crates/simple-server)
 
 ## up and running
 
