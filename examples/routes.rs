@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
 extern crate simple_server;
 
 use simple_server::{Server, Method, StatusCode};
@@ -7,7 +11,7 @@ fn main() {
     let port = "7878";
 
     let server = Server::new(|request, mut response| {
-        println!("Request received. {} {}", request.method(), request.uri());
+        info!("Request received. {} {}", request.method(), request.uri());
 
         match (request.method(), request.uri().path()) {
             (&Method::GET, "/hello") => {
