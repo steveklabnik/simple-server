@@ -53,8 +53,8 @@ cargo doc --open
 
 there are several examples provided with this crate:
 
-- [server](https://github.com/steveklabnik/simple-server/blob/c5499dc64def427d30d613c2087bec46072c4110/examples/server.rs)
-- [routes](https://github.com/steveklabnik/simple-server/blob/c5499dc64def427d30d613c2087bec46072c4110/examples/routes.rs)
+- [server](https://github.com/steveklabnik/simple-server/blob/master/examples/server.rs)
+- [routes](https://github.com/steveklabnik/simple-server/blob/master/examples/routes.rs)
 
 to run an example:
 
