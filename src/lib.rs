@@ -190,11 +190,22 @@ impl Server {
 }
 
 fn write_response(response: Response<&[u8]>, mut stream: TcpStream) -> Result<(), Error> {
+    let headers = response.headers().iter().fold(
+        String::new(),
+        |builder, (k, v)| {
+            format!("{}{}: {}\r\n", builder, k.as_str(), v.to_str().unwrap())
+        },
+    );
+
     let text =
         format!(
-        "HTTP/1.1 {} {}\r\n\r\n",
+        "HTTP/1.1 {} {}\r\n{}\r\n",
         response.status().as_str(),
-        response.status().canonical_reason().expect("Unsupported HTTP Status"),
+        response
+            .status()
+            .canonical_reason()
+            .expect("Unsupported HTTP Status"),
+        headers,
     );
     stream.write(text.as_bytes())?;
 
