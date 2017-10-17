@@ -82,7 +82,7 @@ impl<'a> Server<'a> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().into())?)
     ///     });
     /// }
     /// ```
@@ -112,7 +112,7 @@ impl<'a> Server<'a> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().into())?)
     ///     });
     ///
     ///     server.listen("127.0.0.1", "7979");
