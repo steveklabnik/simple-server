@@ -17,5 +17,6 @@ fn main() {
         Ok(response.body("Hello Rust!".as_bytes())?)
     });
 
+    println!("Listening on http://{}:{}/", host, port);
     server.listen(host, port);
 }
