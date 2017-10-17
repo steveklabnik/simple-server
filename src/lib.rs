@@ -139,7 +139,10 @@ impl Server {
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
         let mut buffer = [0; 512];
 
-        stream.read(&mut buffer)?;
+        if stream.read(&mut buffer)? == 0 {
+            // Connection closed
+            return Ok(());
+        }
 
         let request = parse_request(&buffer)?;
         let mut response_builder = Response::builder();
