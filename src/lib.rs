@@ -53,12 +53,12 @@ pub use error::Error;
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
-pub struct Server<'a> {
-    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<Cow<'a, [u8]>>, Error>,
+pub struct Server<T> {
+    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>,
 }
 
 
-impl<'a> Server<'a> {
+impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// Constructs a new server with the given handler.
     ///
     /// The handler function is called on all requests.
@@ -82,13 +82,11 @@ impl<'a> Server<'a> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes().into())?)
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
     ///     });
     /// }
     /// ```
-    pub fn new(
-        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<Cow<'a, [u8]>>, Error>,
-    ) -> Self {
+    pub fn new(handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>) -> Self {
         Server { handler }
     }
 
@@ -112,7 +110,7 @@ impl<'a> Server<'a> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes().into())?)
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
     ///     });
     ///
     ///     server.listen("127.0.0.1", "7979");
@@ -158,7 +156,7 @@ impl<'a> Server<'a> {
             response_builder.status(StatusCode::NOT_FOUND);
 
             let response = response_builder
-                .body("<h1>404</h1><p>Not found!<p>".as_bytes().into())
+                .body("<h1>404</h1><p>Not found!<p>".as_bytes())
                 .unwrap();
 
             write_response(response, stream)?;
@@ -172,27 +170,41 @@ impl<'a> Server<'a> {
 
             f.read_to_end(&mut source)?;
 
-            let response = response_builder.body(source.into())?;
+            let response = response_builder.body(source)?;
 
             write_response(response, stream)?;
             return Ok(());
         }
 
-        let response = (self.handler)(request, response_builder).unwrap_or_else(|_| {
-            let mut response_builder = Response::builder();
-            response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
+        match (self.handler)(request, response_builder) {
+            Ok(response) => Ok(write_response(response, stream)?),
+            Err(_) => {
+                let mut response_builder = Response::builder();
+                response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
 
-            response_builder
-                .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes().into())
-                .unwrap()
-        });
+                let response = response_builder
+                    .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
+                    .unwrap();
 
-        Ok(write_response(response, stream)?)
+                Ok(write_response(response, stream)?)
+            }
+        }
+
+        // let response = (self.handler)(request, response_builder).unwrap_or_else(|_| {
+        //     let mut response_builder = Response::builder();
+        //     response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
+
+        //     response_builder
+        //         .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
+        //         .unwrap()
+        // });
+
+        // Ok(write_response(response, stream)?)
     }
 }
 
-fn write_response<'a>(
-    response: Response<Cow<'a, [u8]>>,
+fn write_response<'a, T: Into<Cow<'a, [u8]>>>(
+    response: Response<T>,
     mut stream: TcpStream,
 ) -> Result<(), Error> {
     let text =
@@ -203,7 +215,12 @@ fn write_response<'a>(
     );
     stream.write(text.as_bytes())?;
 
-    stream.write(response.body())?;
+    let body: Cow<'a, [u8]> = {
+        let (_, body) = response.into_parts();
+        body.into()
+    };
+
+    stream.write(&*body)?;
     Ok(stream.flush()?)
 }
 
