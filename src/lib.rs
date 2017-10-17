@@ -189,17 +189,6 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
                 Ok(write_response(response, stream)?)
             }
         }
-
-        // let response = (self.handler)(request, response_builder).unwrap_or_else(|_| {
-        //     let mut response_builder = Response::builder();
-        //     response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
-
-        //     response_builder
-        //         .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
-        //         .unwrap()
-        // });
-
-        // Ok(write_response(response, stream)?)
     }
 }
 
