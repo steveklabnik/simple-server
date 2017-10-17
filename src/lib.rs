@@ -191,7 +191,10 @@ impl<'a> Server<'a> {
     }
 }
 
-fn write_response<'a>(response: Response<Cow<'a, [u8]>>, mut stream: TcpStream) -> Result<(), Error> {
+fn write_response<'a>(
+    response: Response<Cow<'a, [u8]>>,
+    mut stream: TcpStream,
+) -> Result<(), Error> {
     let text =
         format!(
         "HTTP/1.1 {} {}\r\n\r\n",

@@ -15,11 +15,15 @@ fn main() {
 
         match (request.method(), request.uri().path()) {
             (&Method::GET, "/hello") => {
-                Ok(response.body("<h1>Hi!</h1><p>Hello Rust!</p>".as_bytes().into())?)
+                Ok(response.body(
+                    "<h1>Hi!</h1><p>Hello Rust!</p>".as_bytes().into(),
+                )?)
             }
             (_, _) => {
                 response.status(StatusCode::NOT_FOUND);
-                Ok(response.body("<h1>404</h1><p>Not found!<p>".as_bytes().into())?)
+                Ok(response.body(
+                    "<h1>404</h1><p>Not found!<p>".as_bytes().into(),
+                )?)
             }
         }
     });

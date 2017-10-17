@@ -13,8 +13,8 @@ fn main() {
     let port = "7878";
 
     let server = Server::new(|request, mut response| {
-        let msg = format!("The path you requested was: '{}'", request.uri().path());
-        Ok(response.body(msg.into_bytes().into())?)
+        info!("Request received. {} {}", request.method(), request.uri());
+        Ok(response.body("Hello Rust!".as_bytes().into())?)
     });
 
     server.listen(host, port);
