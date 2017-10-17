@@ -24,5 +24,6 @@ fn main() {
         }
     });
 
+    println!("Listening on http://{}:{}/", host, port);
     server.listen(host, port);
 }
