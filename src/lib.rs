@@ -43,6 +43,8 @@ use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 
+use std::borrow::Cow;
+
 mod error;
 
 pub use error::Error;
@@ -51,12 +53,12 @@ pub use error::Error;
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
-pub struct Server {
-    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
+pub struct Server<'a> {
+    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<Cow<'a, [u8]>>, Error>,
 }
 
 
-impl Server {
+impl<'a> Server<'a> {
     /// Constructs a new server with the given handler.
     ///
     /// The handler function is called on all requests.
@@ -85,8 +87,8 @@ impl Server {
     /// }
     /// ```
     pub fn new(
-        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
-    ) -> Server {
+        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<Cow<'a, [u8]>>, Error>,
+    ) -> Self {
         Server { handler }
     }
 
@@ -153,7 +155,7 @@ impl Server {
             response_builder.status(StatusCode::NOT_FOUND);
 
             let response = response_builder
-                .body("<h1>404</h1><p>Not found!<p>".as_bytes())
+                .body("<h1>404</h1><p>Not found!<p>".as_bytes().into())
                 .unwrap();
 
             write_response(response, stream)?;
@@ -167,7 +169,7 @@ impl Server {
 
             f.read_to_end(&mut source)?;
 
-            let response = response_builder.body(&*source)?;
+            let response = response_builder.body(source.into())?;
 
             write_response(response, stream)?;
             return Ok(());
@@ -178,7 +180,7 @@ impl Server {
             response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
 
             response_builder
-                .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
+                .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes().into())
                 .unwrap()
         });
 
@@ -186,7 +188,7 @@ impl Server {
     }
 }
 
-fn write_response(response: Response<&[u8]>, mut stream: TcpStream) -> Result<(), Error> {
+fn write_response<'a>(response: Response<Cow<'a, [u8]>>, mut stream: TcpStream) -> Result<(), Error> {
     let text =
         format!(
         "HTTP/1.1 {} {}\r\n\r\n",
