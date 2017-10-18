@@ -194,7 +194,7 @@ fn write_response(response: Response<&[u8]>, mut stream: TcpStream) -> Result<()
         format!(
         "HTTP/1.1 {} {}\r\n\r\n",
         response.status().as_str(),
-        response.status().canonical_reason().unwrap(),
+        response.status().canonical_reason().expect("Unsupported HTTP Status"),
     );
     stream.write(text.as_bytes())?;
 
