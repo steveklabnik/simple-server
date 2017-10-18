@@ -34,7 +34,7 @@ pub use http::Request;
 pub use http::response::{Builder, Response, Parts};
 pub use http::status::{InvalidStatusCode, StatusCode};
 pub use http::method::Method;
-use http::response::Builder as ResponseBuilder;
+pub use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
 
