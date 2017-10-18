@@ -1,11 +1,13 @@
 extern crate simple_server;
+extern crate futures;
 
 use simple_server::Server;
+use futures::future::ok;
 
 #[test]
 fn test_server_new() {
     Server::new(|_request, mut response| {
-        Ok(response.body("Hello Rust!".as_bytes())?)
+        Ok(Box::new(ok(response.body("Hello Rust!".as_bytes())?)))
     });
 }
 
@@ -16,6 +18,6 @@ fn test_error_fallback() {
         response.header("Foo", "Bar\r\n");
 
         // this will then fail
-        Ok(response.body("".as_bytes())?)
+        Ok(Box::new(ok(response.body("".as_bytes())?)))
     });
 }

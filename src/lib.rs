@@ -26,9 +26,13 @@
 #[macro_use]
 extern crate log;
 
+extern crate futures;
 extern crate http;
 extern crate httparse;
 extern crate scoped_threadpool;
+
+pub use futures::Future;
+use futures::future::ok;
 
 pub use http::Request;
 pub use http::response::{Builder, Response, Parts};
@@ -52,7 +56,7 @@ pub use error::Error;
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
 pub struct Server {
-    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
+    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Box<Future<Item=Response<&[u8]>, Error=Error>>, Error>,
 }
 
 
@@ -75,17 +79,19 @@ impl Server {
     ///
     /// ```
     /// extern crate simple_server;
+    /// extern crate futures;
     ///
     /// use simple_server::Server;
+    /// use futures::future::ok;
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(Box::new(ok(response.body("Hello, world!".as_bytes())?)))
     ///     });
     /// }
     /// ```
     pub fn new(
-        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<&[u8]>, Error>,
+        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Box<Future<Item=Response<&[u8]>, Error=Error>>, Error>,
     ) -> Server {
         Server { handler }
     }
@@ -105,12 +111,14 @@ impl Server {
     ///
     /// ```no_run
     /// extern crate simple_server;
+    /// extern crate futures;
     ///
     /// use simple_server::Server;
+    /// use futures::future::ok;
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(Box::new(ok(response.body("Hello, world!".as_bytes())?)))
     ///     });
     ///
     ///     server.listen("127.0.0.1", "7979");
@@ -180,10 +188,12 @@ impl Server {
             let mut response_builder = Response::builder();
             response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
 
-            response_builder
+            Box::new(ok(response_builder
                 .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
-                .unwrap()
+                .unwrap()))
         });
+
+        let response = response.wait()?;
 
         Ok(write_response(response, stream)?)
     }
