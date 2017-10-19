@@ -34,7 +34,7 @@ pub use http::Request;
 pub use http::response::{Builder, Response, Parts};
 pub use http::status::{InvalidStatusCode, StatusCode};
 pub use http::method::Method;
-use http::response::Builder as ResponseBuilder;
+pub use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
 
@@ -200,7 +200,7 @@ fn write_response<'a, T: Into<Cow<'a, [u8]>>>(
         format!(
         "HTTP/1.1 {} {}\r\n\r\n",
         response.status().as_str(),
-        response.status().canonical_reason().unwrap(),
+        response.status().canonical_reason().expect("Unsupported HTTP Status"),
     );
     stream.write(text.as_bytes())?;
 
