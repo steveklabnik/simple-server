@@ -28,6 +28,7 @@ extern crate log;
 
 extern crate http;
 extern crate httparse;
+extern crate num_cpus;
 extern crate scoped_threadpool;
 
 pub use http::Request;
@@ -38,6 +39,7 @@ pub use http::response::Builder as ResponseBuilder;
 
 use scoped_threadpool::Pool;
 
+use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
@@ -117,7 +119,8 @@ impl Server {
     /// }
     /// ```
     pub fn listen(&self, host: &str, port: &str) {
-        let mut pool = Pool::new(4);
+        let num_threads = self.pool_size();
+        let mut pool = Pool::new(num_threads);
         let listener =
             TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
 
@@ -133,6 +136,18 @@ impl Server {
                     );
                 });
             });
+        }
+    }
+
+    // Try and fetch the environment variable SIMPLESERVER_THREADS and parse it as a u32.
+    // If this fails we fall back to using the num_cpus crate.
+    fn pool_size(&self) -> u32 {
+        const NUM_THREADS: &str = "SIMPLESERVER_THREADS";
+        let logical_cores = num_cpus::get() as u32;
+
+        match env::var(NUM_THREADS) {
+            Ok(v) => v.parse::<u32>().unwrap_or(logical_cores),
+            Err(_) => logical_cores,
         }
     }
 
