@@ -15,6 +15,7 @@ travis-ci = { repository = "steveklabnik/simple-server" }
 http = "0.1.0"
 httparse = "1.2.3"
 log = "0.3"
+num_cpus = "1"
 scoped_threadpool = "0.1.7"
 
 [dev-dependencies]
