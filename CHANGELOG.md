@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+> new features, and a RustBridge! The work done for this release will result in
+> Rust Belt Rust 2017's RustBridge being taught with `simple-server`!
+
+### Features
+
+- An environment variable can be used to configure the number of threads in the pool. ([@gsquire]/[pull/79])
+- The response body type is now `Cow<'a, [u8]>`, allowing you to return owned as well as borrowed data. ([@kardeiz]/[pull/74])
+
+[@gsquire]: https://github.com/gsquire
+[@kardeiz]: https://github.com/kardeiz
+[pull/79]: https://github.com/steveklabnik/simple-server/pull/79
+[pull/74]: https://github.com/steveklabnik/simple-server/pull/74
+
 ## 0.2.0
 > the release that inevitably comes immediately after a first release 😅😅😅
 
