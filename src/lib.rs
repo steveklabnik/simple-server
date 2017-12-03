@@ -32,7 +32,7 @@ extern crate num_cpus;
 extern crate scoped_threadpool;
 
 pub use http::Request;
-pub use http::response::{Builder, Response, Parts};
+pub use http::response::{Builder, Parts, Response};
 pub use http::status::{InvalidStatusCode, StatusCode};
 pub use http::method::Method;
 pub use http::response::Builder as ResponseBuilder;
@@ -44,21 +44,26 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
+use std::time::Duration;
 
 use std::borrow::Cow;
 
 mod error;
+mod request;
 
 pub use error::Error;
+
+
+type ServerHandler<T> = fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>;
 
 /// A web server.
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
 pub struct Server<T> {
-    handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>,
+    handler: ServerHandler<T>,
+    timeout: Option<Duration>,
 }
-
 
 impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// Constructs a new server with the given handler.
@@ -88,8 +93,49 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     });
     /// }
     /// ```
-    pub fn new(handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>) -> Self {
-        Server { handler }
+    pub fn new(
+        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>,
+    ) -> Server<T> {
+        Server {
+            handler,
+            timeout: None,
+        }
+    }
+
+    /// Constructs a new server with the given handler and the specified request
+    /// timeout.
+    ///
+    /// The handler function is called on all requests.
+    ///
+    /// # Errors
+    ///
+    /// The handler function returns a `Result` so that you may use `?` to
+    /// handle errors. If a handler returns an `Err`, a 500 will be shown.
+    ///
+    /// If you'd like behavior other than that, return an `Ok(Response)` with
+    /// the proper error code. In other words, this behavior is to gracefully
+    /// handle errors you don't care about, not for properly handling
+    /// non-`HTTP 200` responses.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate simple_server;
+    ///
+    /// use std::time::Duration;
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let server = Server::with_timeout(Duration::from_secs(5), |request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///     });
+    /// }
+    /// ```
+    pub fn with_timeout(timeout: Duration, handler: ServerHandler<T>) -> Server<T> {
+        Server {
+            handler: handler,
+            timeout: Some(timeout),
+        }
     }
 
     /// Tells the server to listen on a specified host and port.
@@ -119,6 +165,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// }
     /// ```
     pub fn listen(&self, host: &str, port: &str) {
+        const READ_TIMEOUT_MS: u64 = 20;
         let num_threads = self.pool_size();
         let mut pool = Pool::new(num_threads);
         let listener =
@@ -128,6 +175,9 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
 
         for stream in listener.incoming() {
             let stream = stream.expect("Error handling TCP stream.");
+            stream
+                .set_read_timeout(Some(Duration::from_millis(READ_TIMEOUT_MS)))
+                .expect("FATAL: Couldn't set read timeout on socket");
 
             pool.scoped(|scope| {
                 scope.execute(|| {
@@ -154,12 +204,25 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
         let mut buffer = [0; 512];
 
-        if stream.read(&mut buffer)? == 0 {
-            // Connection closed
-            return Ok(());
-        }
+        let request = match request::read(&mut buffer, &mut stream, self.timeout) {
+            Err(Error::ConnectionClosed) |
+            Err(Error::Timeout) |
+            Err(Error::HttpParse(_)) => return Ok(()),
 
-        let request = parse_request(&buffer)?;
+            Err(Error::RequestTooLarge) => {
+                let resp = Response::builder()
+                    .status(StatusCode::PAYLOAD_TOO_LARGE)
+                    .body("<h1>413</h1><p>Request too large!<p>".as_bytes())
+                    .unwrap();
+                write_response(resp, stream)?;
+                return Ok(());
+            }
+
+            Err(e) => return Err(e),
+
+            Ok(r) => r,
+        };
+
         let mut response_builder = Response::builder();
 
         // first, we serve static files
@@ -238,7 +301,6 @@ fn write_response<'a, T: Into<Cow<'a, [u8]>>, S: Write>(
     stream.write(&*body)?;
     Ok(stream.flush()?)
 }
-
 #[test]
 fn test_write_response() {
     let mut builder = http::response::Builder::new();
@@ -260,24 +322,4 @@ fn test_write_response_no_headers() {
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
     let expected = b"HTTP/1.1 200 OK\r\n\r\nHello rust";
     assert_eq!(&expected[..], &output[..]);
-}
-
-fn parse_request(raw_request: &[u8]) -> Result<Request<&[u8]>, Error> {
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut req = httparse::Request::new(&mut headers);
-
-    let header_length = req.parse(raw_request)?.unwrap() as usize;
-
-    let body = &raw_request[header_length..];
-    let mut http_req = Request::builder();
-
-    for header in req.headers {
-        http_req.header(header.name, header.value);
-    }
-
-    let mut request = http_req.body(body)?;
-    let path = req.path.unwrap();
-    *request.uri_mut() = path.parse()?;
-
-    Ok(request)
 }
