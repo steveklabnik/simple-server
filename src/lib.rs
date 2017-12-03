@@ -53,15 +53,19 @@ mod request;
 
 pub use error::Error;
 
-
-type ServerHandler<T> = fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>;
+pub type Handler<T> = Box<
+    Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
+        + 'static
+        + Send
+        + Sync,
+>;
 
 /// A web server.
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
 pub struct Server<T> {
-    handler: ServerHandler<T>,
+    handler: Handler<T>,
     timeout: Option<Duration>,
 }
 
@@ -93,11 +97,16 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     });
     /// }
     /// ```
-    pub fn new(
-        handler: fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>,
+    pub fn new<
+        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
+            + 'static
+            + Send
+            + Sync,
+    >(
+        handler: H,
     ) -> Server<T> {
         Server {
-            handler,
+            handler: Box::new(handler),
             timeout: None,
         }
     }
@@ -131,7 +140,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     });
     /// }
     /// ```
-    pub fn with_timeout(timeout: Duration, handler: ServerHandler<T>) -> Server<T> {
+    pub fn with_timeout(timeout: Duration, handler: Handler<T>) -> Server<T> {
         Server {
             handler: handler,
             timeout: Some(timeout),
