@@ -263,8 +263,12 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
             return Ok(());
         }
 
+
         match (self.handler)(request, response_builder) {
-            Ok(response) => Ok(write_response(response, stream)?),
+            Ok(response) => {
+                response.headers_mut().insert(http::header::CONTENT_LENGTH, response.body().borrow().len());
+                Ok(write_response(response, stream)?)
+            },
             Err(_) => {
                 let mut response_builder = Response::builder();
                 response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
