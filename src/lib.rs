@@ -207,15 +207,26 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     }
 }
 
-fn write_response<'a, T: Into<Cow<'a, [u8]>>>(
+fn write_response<'a, T: Into<Cow<'a, [u8]>>, S: Write>(
     response: Response<T>,
-    mut stream: TcpStream,
+    mut stream: S,
 ) -> Result<(), Error> {
+    let headers = response.headers().iter().fold(
+        String::new(),
+        |builder, (k, v)| {
+            format!("{}{}: {}\r\n", builder, k.as_str(), v.to_str().unwrap())
+        },
+    );
+
     let text =
         format!(
-        "HTTP/1.1 {} {}\r\n\r\n",
+        "HTTP/1.1 {} {}\r\n{}\r\n",
         response.status().as_str(),
-        response.status().canonical_reason().expect("Unsupported HTTP Status"),
+        response
+            .status()
+            .canonical_reason()
+            .expect("Unsupported HTTP Status"),
+        headers,
     );
     stream.write(text.as_bytes())?;
 
@@ -226,6 +237,29 @@ fn write_response<'a, T: Into<Cow<'a, [u8]>>>(
 
     stream.write(&*body)?;
     Ok(stream.flush()?)
+}
+
+#[test]
+fn test_write_response() {
+    let mut builder = http::response::Builder::new();
+    builder.status(http::StatusCode::OK);
+    builder.header(http::header::CONTENT_TYPE, "text/plain".as_bytes());
+
+    let mut output = vec![];
+    let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
+    let expected = b"HTTP/1.1 200 OK\r\ncontent-type: text/plain\r\n\r\nHello rust";
+    assert_eq!(&expected[..], &output[..]);
+}
+
+#[test]
+fn test_write_response_no_headers() {
+    let mut builder = http::response::Builder::new();
+    builder.status(http::StatusCode::OK);
+
+    let mut output = vec![];
+    let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
+    let expected = b"HTTP/1.1 200 OK\r\n\r\nHello rust";
+    assert_eq!(&expected[..], &output[..]);
 }
 
 fn parse_request(raw_request: &[u8]) -> Result<Request<&[u8]>, Error> {
