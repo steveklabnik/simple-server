@@ -14,7 +14,7 @@ fn main() {
 
     let server = Server::new(|request, mut response| {
         info!("Request received. {} {}", request.method(), request.uri());
-        Ok(response.body("Hello Rust!".as_bytes())?)
+        Ok(response.body("Hello Rust!".as_bytes().to_vec())?)
     });
 
     server.listen(host, port);

@@ -54,22 +54,22 @@ mod parsing;
 
 pub use error::Error;
 
-pub type ResponseResult<T> = Result<Response<T>, Error>;
+pub type ResponseResult = Result<Response<Vec<u8>>, Error>;
 
-pub type Handler<T> =
-    Box<Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync>;
+pub type Handler =
+    Box<Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync>;
 
 /// A web server.
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
-pub struct Server<T> {
-    handler: Handler<T>,
+pub struct Server {
+    handler: Handler,
     timeout: Option<Duration>,
     static_directory: PathBuf,
 }
 
-impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
+impl Server {
     /// Constructs a new server with the given handler.
     ///
     /// The handler function is called on all requests.
@@ -93,13 +93,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     /// }
     /// ```
-    pub fn new<H>(handler: H) -> Server<T>
+    pub fn new<H>(handler: H) -> Server
     where
-        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -133,13 +133,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::with_timeout(Duration::from_secs(5), |request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     /// }
     /// ```
-    pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
+    pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server
     where
-        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -168,7 +168,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     ///
     ///     server.listen("127.0.0.1", "7979");
@@ -268,7 +268,14 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
         }
 
         match (self.handler)(request, response_builder) {
-            Ok(response) => Ok(write_response(response, stream)?),
+            Ok(mut response) => {
+                let len = response.body().len().to_string();
+                response.headers_mut().insert(
+                    http::header::CONTENT_LENGTH,
+                    http::header::HeaderValue::from_str(&len).unwrap(),
+                );
+                Ok(write_response(response, stream)?)
+            }
             Err(_) => {
                 let mut response_builder = Response::builder();
                 response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
