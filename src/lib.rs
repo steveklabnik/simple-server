@@ -50,11 +50,14 @@ use std::borrow::Cow;
 
 mod error;
 mod request;
+mod parsing;
 
 pub use error::Error;
 
+pub type ResponseResult<T> = Result<Response<T>, Error>;
+
 pub type Handler<T> =
-    Box<Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error> + 'static + Send + Sync>;
+    Box<Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync>;
 
 /// A web server.
 ///
@@ -96,10 +99,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// ```
     pub fn new<H>(handler: H) -> Server<T>
     where
-        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-            + Send
-            + Sync
-            + 'static,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -139,10 +139,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// ```
     pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
     where
-        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-            + Send
-            + Sync
-            + 'static,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -218,9 +215,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     }
 
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
-        let mut buffer = [0; 512];
-
-        let request = match request::read(&mut buffer, &mut stream, self.timeout) {
+        let request = match request::read(&mut stream, self.timeout) {
             Err(Error::ConnectionClosed) | Err(Error::Timeout) | Err(Error::HttpParse(_)) => {
                 return Ok(())
             }
