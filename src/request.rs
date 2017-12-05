@@ -145,7 +145,7 @@ mod server_should {
                     }
                 };
 
-                self.bytes_read += read as _;
+                self.bytes_read += read as usize;
                 self.read_count += 1;
 
                 Ok(read as _)
