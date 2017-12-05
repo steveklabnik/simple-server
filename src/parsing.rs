@@ -30,8 +30,7 @@ impl Request {
     }
 
     pub fn path(&self) -> &str {
-        ::std::str::from_utf8(&self.buffer[self.proto.path.0..self.proto.path.1])
-            .unwrap()
+        ::std::str::from_utf8(&self.buffer[self.proto.path.0..self.proto.path.1]).unwrap()
     }
 
     pub fn headers<'a>(&'a self) -> HeaderIter<'a> {
@@ -46,13 +45,15 @@ impl<'a> Iterator for HeaderIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         use std::str;
-        self.1.next()
-            .map(|&HeaderIndices{ref name, ref value}| {
-                Header {
-                    name: str::from_utf8(&self.0[name.0..name.1]).unwrap(),
-                    value: &self.0[value.0..value.1],
-                }
-            })
+        self.1.next().map(|&HeaderIndices {
+             ref name,
+             ref value,
+         }| {
+            Header {
+                name: str::from_utf8(&self.0[name.0..name.1]).unwrap(),
+                value: &self.0[value.0..value.1],
+            }
+        })
     }
 }
 
@@ -75,24 +76,29 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
             httparse::Status::Complete(n) => Some((request, n)),
         };
 
-        request.map(|(r, n)| {
-            let proto = RequestProtocolIndices {
-                path: slice_indices(&*buffer, r.path.unwrap().as_bytes()),
-            };
+        request
+            .map(|(r, n)| {
+                let proto = RequestProtocolIndices {
+                    path: slice_indices(&*buffer, r.path.unwrap().as_bytes()),
+                };
 
-            (r, proto, n)
-        })
-        .map(|(r, proto, n)| {
-            let headers = r.headers.iter()
-                .map(|&httparse::Header { ref name, ref value }| {
-                    HeaderIndices {
-                        name: slice_indices(&*buffer, name.as_bytes()),
-                        value: slice_indices(&*buffer, value),
-                    }
-                })
-                .collect::<Vec<_>>();
-            (proto, headers, n)
-        })
+                (r, proto, n)
+            })
+            .map(|(r, proto, n)| {
+                let headers = r.headers
+                    .iter()
+                    .map(|&httparse::Header {
+                         ref name,
+                         ref value,
+                     }| {
+                        HeaderIndices {
+                            name: slice_indices(&*buffer, name.as_bytes()),
+                            value: slice_indices(&*buffer, value),
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                (proto, headers, n)
+            })
     };
 
     if let Some((proto, headers, n)) = result {
@@ -100,10 +106,9 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
             proto: proto,
             headers: headers,
             body: slice_indices(&*buffer, &buffer[n..]),
-            buffer: buffer
+            buffer: buffer,
         }));
     }
 
     return Ok(ParseResult::Partial(buffer));
 }
-

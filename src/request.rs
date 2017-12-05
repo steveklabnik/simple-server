@@ -31,7 +31,7 @@ pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Reques
                         continue;
                     }
                 }
-            },
+            }
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock && e.kind() != io::ErrorKind::TimedOut {
                     return Err(e.into());

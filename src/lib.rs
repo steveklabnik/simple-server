@@ -54,8 +54,10 @@ mod parsing;
 
 pub use error::Error;
 
+pub type ResponseResult<T> = Result<Response<T>, Error>;
+
 pub type Handler<T> = Box<
-    Fn(Request<Vec<u8>>, ResponseBuilder) -> Result<Response<T>, Error>
+    Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T>
         + 'static
         + Send
         + Sync,
@@ -99,10 +101,8 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// }
     /// ```
     pub fn new<H>(handler: H) -> Server<T>
-        where H: Fn(Request<Vec<u8>>, ResponseBuilder) -> Result<Response<T>, Error>
-            + 'static 
-            + Send 
-            + Sync
+    where
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -140,10 +140,8 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// }
     /// ```
     pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
-        where H: Fn(Request<Vec<u8>>, ResponseBuilder) -> Result<Response<T>, Error>
-            + 'static 
-            + Send 
-            + Sync
+    where
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult<T> + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
