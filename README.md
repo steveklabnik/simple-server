@@ -24,7 +24,7 @@ to use this crate in your project, add the following line to your `Cargo.toml`
 in the `[dependencies]` section:
 
 ```toml
-simple-server = "0.1.0"
+simple-server = "0.3.0"
 ```
 
 to see this crate in action, check out the [examples].
