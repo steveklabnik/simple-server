@@ -219,7 +219,7 @@ impl Server {
     }
 
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
-        let mut buffer = [0; 512];
+        let mut buffer = [0; 4096];
 
         let request = match request::read(&mut buffer, &mut stream, self.timeout) {
             Err(Error::ConnectionClosed) |
