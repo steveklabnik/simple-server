@@ -1,4 +1,4 @@
-use std::io::{self, Read, Seek};
+use std::io::{self, Read};
 use std::time::{Duration, Instant};
 use error::Error;
 use super::Request;
@@ -15,19 +15,22 @@ fn duration_to_milliseconds(from: &Duration) -> u64 {
 }
 
 pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Request<Vec<u8>>, Error> {
+    use std::mem;
+
     let start_time = Instant::now();
-    let mut buffer = io::Cursor::new(Vec::with_capacity(512));
+    let mut buffer = Vec::with_capacity(512);
+    let mut read_buf = [0_u8; 512];
 
     let request = loop {
 
-        buffer.seek(io::SeekFrom::End(0))?;
-        match io::copy(stream, &mut buffer) {
+        match stream.read(&mut read_buf) {
             Ok(0) => return Err(Error::ConnectionClosed),
-            Ok(_) => {
-                match parsing::try_parse_request(buffer.into_inner())? {
+            Ok(n) => {
+                buffer.extend_from_slice(&read_buf[..n]);
+                match parsing::try_parse_request(mem::replace(&mut buffer, vec![]))? {
                     parsing::ParseResult::Complete(r) => break r,
                     parsing::ParseResult::Partial(b) => {
-                        buffer = io::Cursor::new(b);
+                        mem::replace(&mut buffer, b);
                         continue;
                     }
                 }
@@ -102,7 +105,7 @@ mod server_should {
     }
 
     impl<'content> Read for ChunkStream<'content> {
-        fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             use std::thread;
 
             if let Some(timeout) = self.timeout {
@@ -112,11 +115,17 @@ mod server_should {
                 let read = match self.read_count {
                     0 => {
                         let half = self.content.len() / 2;
-                        io::copy(&mut &self.content[..half], &mut buf)?
+                        let min = ::std::cmp::min(half, buf.len());
+                        &buf[..min].copy_from_slice(&self.content[..min]);
+                        min
                     }
                     _ => {
-                        let rest = self.bytes_read;
-                        io::copy(&mut &self.content[rest..], &mut buf)?
+                        let min = ::std::cmp::min(self.content[self.bytes_read..].len(), buf.len());
+                        &buf[..min].copy_from_slice(
+                            &self.content[self.bytes_read..
+                                              self.bytes_read + min],
+                        );
+                        min
                     }
                 };
 

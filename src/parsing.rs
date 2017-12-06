@@ -112,3 +112,23 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
 
     return Ok(ParseResult::Partial(buffer));
 }
+
+#[cfg(test)]
+mod parsing_should {
+    use super::*;
+
+    #[test]
+    fn parse_a_request() {
+        let request = include_bytes!("../tests/big-http-request.txt").to_vec();
+
+        let result = try_parse_request(request);
+        assert!(result.is_ok());
+
+        match result.unwrap() {
+            ParseResult::Complete(r) => {
+                assert_eq!("/", r.path());
+            }
+            ParseResult::Partial(_) => panic!("Expected Complete. Got Partial!"),
+        }
+    }
+}
