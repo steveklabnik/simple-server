@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use error::Error;
 use super::Request;
 
-use httparse;
+use parsing;
 
 fn elapsed_milliseconds(from: &Instant) -> u64 {
     let elapsed = Instant::now() - *from;
@@ -14,22 +14,27 @@ fn duration_to_milliseconds(from: &Duration) -> u64 {
     (from.as_secs() * 1000) + (from.subsec_nanos() as u64 / 1_000_000)
 }
 
-pub(super) fn read<'request, S: Read>(
-    buf: &'request mut [u8],
-    stream: &mut S,
-    timeout: Option<Duration>,
-) -> Result<Request<&'request [u8]>, Error> {
+pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Request<Vec<u8>>, Error> {
+    use std::mem;
+
     let start_time = Instant::now();
-    let mut total_read = 0;
+    let mut buffer = Vec::with_capacity(512);
+    let mut read_buf = [0_u8; 512];
 
-    loop {
-        if total_read == buf.len() {
-            return Err(Error::RequestTooLarge);
-        }
+    let request = loop {
 
-        let read = match stream.read(&mut buf[total_read..]) {
-            Ok(num) if num == 0 => return Err(Error::ConnectionClosed),
-            Ok(num) => num,
+        match stream.read(&mut read_buf) {
+            Ok(0) => return Err(Error::ConnectionClosed),
+            Ok(n) => {
+                buffer.extend_from_slice(&read_buf[..n]);
+                match parsing::try_parse_request(mem::replace(&mut buffer, vec![]))? {
+                    parsing::ParseResult::Complete(r) => break r,
+                    parsing::ParseResult::Partial(b) => {
+                        mem::replace(&mut buffer, b);
+                        continue;
+                    }
+                }
+            }
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock && e.kind() != io::ErrorKind::TimedOut {
                     return Err(e.into());
@@ -44,49 +49,22 @@ pub(super) fn read<'request, S: Read>(
 
                 continue;
             }
-        };
-
-        total_read += read;
-        if is_valid_request(&buf[..total_read])? {
-            break;
         }
-    }
-
-    Ok(parse_request(&buf[..total_read])?)
-}
-
-fn is_valid_request(data: &[u8]) -> Result<bool, Error> {
-    use httparse::Status;
-
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut req = httparse::Request::new(&mut headers);
-
-    match req.parse(data)? {
-        Status::Complete(_) => Ok(true),
-        Status::Partial => Ok(false),
-    }
-}
-
-fn parse_request(raw_request: &[u8]) -> Result<Request<&[u8]>, Error> {
-    use httparse::Status;
-
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut req = httparse::Request::new(&mut headers);
-
-    let header_length = match req.parse(raw_request)? {
-        Status::Complete(n) => n as usize,
-        Status::Partial => return Err(Error::RequestIncomplete),
     };
 
-    let body = &raw_request[header_length..];
+    build_request(request)
+}
+
+fn build_request(mut req: parsing::Request) -> Result<Request<Vec<u8>>, Error> {
+
     let mut http_req = Request::builder();
 
-    for header in req.headers {
+    for header in req.headers() {
         http_req.header(header.name, header.value);
     }
 
-    let mut request = http_req.body(body)?;
-    let path = req.path.unwrap();
+    let mut request = http_req.body(req.split_body())?;
+    let path = req.path();
     *request.uri_mut() = path.parse()?;
 
     Ok(request)
@@ -97,7 +75,7 @@ mod server_should {
 
     use super::*;
 
-    static HTTP_REQUEST: &'static [u8] = b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+    static HTTP_REQUEST: &'static [u8] = include_bytes!("../tests/big-http-request.txt");
 
     struct ChunkStream<'content> {
         content: &'content [u8],
@@ -127,7 +105,7 @@ mod server_should {
     }
 
     impl<'content> Read for ChunkStream<'content> {
-        fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             use std::thread;
 
             if let Some(timeout) = self.timeout {
@@ -137,15 +115,21 @@ mod server_should {
                 let read = match self.read_count {
                     0 => {
                         let half = self.content.len() / 2;
-                        io::copy(&mut &self.content[..half], &mut buf)?
+                        let min = ::std::cmp::min(half, buf.len());
+                        &buf[..min].copy_from_slice(&self.content[..min]);
+                        min
                     }
                     _ => {
-                        let rest = self.bytes_read;
-                        io::copy(&mut &self.content[rest..], &mut buf)?
+                        let min = ::std::cmp::min(self.content[self.bytes_read..].len(), buf.len());
+                        &buf[..min].copy_from_slice(
+                            &self.content[self.bytes_read..
+                                              self.bytes_read + min],
+                        );
+                        min
                     }
                 };
 
-                self.bytes_read += read as _;
+                self.bytes_read += read as usize;
                 self.read_count += 1;
 
                 Ok(read as _)
@@ -155,24 +139,34 @@ mod server_should {
 
     #[test]
     fn read_request_stream_in_multiple_chunks() {
-        let mut buf = [0_u8; 512];
         let mut s = ChunkStream::new(HTTP_REQUEST);
 
-        assert!(read(&mut buf, &mut s, None).is_ok());
+        assert!(read(&mut s, None).is_ok());
     }
 
     #[test]
     fn honour_request_timeout() {
         let timeout = Duration::from_millis(50);
-        let mut buf = [0_u8; 512];
         let mut s = ChunkStream::with_timeout(HTTP_REQUEST, timeout);
 
-        let result = read(&mut buf, &mut s, Some(timeout));
+        let result = read(&mut s, Some(timeout));
 
         match result {
             Err(Error::Timeout) => {}
             Err(e) => panic!("Expected timeout but got {:?}", e),
             Ok(_) => panic!("Expected timeout error but got Ok(_)"),
         }
+    }
+
+    #[test]
+    fn correctly_parse_request() {
+        use http::header::*;
+        let mut s = ChunkStream::new(HTTP_REQUEST);
+        let r = read(&mut s, None).unwrap();
+        assert_eq!(4, r.headers().len());
+        assert_eq!("127.0.0.1", r.headers()[HOST]);
+        assert!(r.headers().contains_key("X-SOME-HEADER"));
+        assert!(r.headers().contains_key("X-SOMEOTHER-HEADER"));
+        assert!(r.headers().contains_key("X-ONEMORE-HEADER"));
     }
 }
