@@ -177,14 +177,48 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// }
     /// ```
     pub fn listen(&self, host: &str, port: &str) -> ! {
-        const READ_TIMEOUT_MS: u64 = 20;
-        let num_threads = self.pool_size();
-        let mut pool = Pool::new(num_threads);
-        let listener =
-            TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
+        let listener = TcpListener::bind(format!("{}:{}", host, port))
+            .expect("Error starting the server.");
 
         info!("Server started at http://{}:{}", host, port);
 
+        self.listen_on_socket(listener)
+    }
+
+    /// Tells the server to listen on a provided `TcpListener`.
+    ///
+    /// A threadpool is created, and used to handle connections.
+    /// The pool size is four threads.
+    ///
+    /// This method blocks forever.
+    ///
+    /// This method will also serve static files out of a `public` directory
+    /// in the same directory as where it's run. If someone tries a path
+    /// directory traversal attack, this will return a `404`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    /// use std::net::TcpListener;
+    ///
+    /// fn main() {
+    ///     let listener = TcpListener::bind(("127.0.0.1", 7979))
+    ///         .expect("Error starting the server.");
+    ///
+    ///     let server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///     });
+    ///
+    ///     server.listen_on_socket(listener);
+    /// }
+    /// ```
+    pub fn listen_on_socket(&self, listener: TcpListener) -> ! {
+        const READ_TIMEOUT_MS: u64 = 20;
+        let num_threads = self.pool_size();
+        let mut pool = Pool::new(num_threads);
         let mut incoming = listener.incoming();
 
         loop {
