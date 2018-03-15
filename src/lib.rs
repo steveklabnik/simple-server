@@ -135,9 +135,15 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     });
     /// }
     /// ```
-    pub fn with_timeout(timeout: Duration, handler: Handler<T>) -> Server<T> {
+    pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
+    where
+        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
+            + Send
+            + Sync
+            + 'static,
+    {
         Server {
-            handler: handler,
+            handler: Box::new(handler),
             timeout: Some(timeout),
         }
     }
