@@ -1,10 +1,10 @@
+extern crate env_logger;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
 
 extern crate simple_server;
 
-use simple_server::{Server, Method, StatusCode};
+use simple_server::{Method, Server, StatusCode};
 
 fn main() {
     let host = "127.0.0.1";

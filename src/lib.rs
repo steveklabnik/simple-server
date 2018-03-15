@@ -53,12 +53,8 @@ mod request;
 
 pub use error::Error;
 
-pub type Handler<T> = Box<
-    Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-        + 'static
-        + Send
-        + Sync,
->;
+pub type Handler<T> =
+    Box<Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error> + 'static + Send + Sync>;
 
 /// A web server.
 ///
@@ -97,14 +93,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     });
     /// }
     /// ```
-    pub fn new<
+    pub fn new<H>(handler: H) -> Server<T>
+    where
         H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-            + 'static
             + Send
-            + Sync,
-    >(
-        handler: H,
-    ) -> Server<T> {
+            + Sync
+            + 'static,
+    {
         Server {
             handler: Box::new(handler),
             timeout: None,
@@ -190,9 +185,8 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
 
             pool.scoped(|scope| {
                 scope.execute(|| {
-                    self.handle_connection(stream).expect(
-                        "Error handling connection.",
-                    );
+                    self.handle_connection(stream)
+                        .expect("Error handling connection.");
                 });
             });
         }
@@ -214,9 +208,9 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
         let mut buffer = [0; 512];
 
         let request = match request::read(&mut buffer, &mut stream, self.timeout) {
-            Err(Error::ConnectionClosed) |
-            Err(Error::Timeout) |
-            Err(Error::HttpParse(_)) => return Ok(()),
+            Err(Error::ConnectionClosed) | Err(Error::Timeout) | Err(Error::HttpParse(_)) => {
+                return Ok(())
+            }
 
             Err(Error::RequestTooLarge) => {
                 let resp = Response::builder()
@@ -283,15 +277,14 @@ fn write_response<'a, T: Into<Cow<'a, [u8]>>, S: Write>(
     response: Response<T>,
     mut stream: S,
 ) -> Result<(), Error> {
-    let headers = response.headers().iter().fold(
-        String::new(),
-        |builder, (k, v)| {
+    let headers = response
+        .headers()
+        .iter()
+        .fold(String::new(), |builder, (k, v)| {
             format!("{}{}: {}\r\n", builder, k.as_str(), v.to_str().unwrap())
-        },
-    );
+        });
 
-    let text =
-        format!(
+    let text = format!(
         "HTTP/1.1 {} {}\r\n{}\r\n",
         response.status().as_str(),
         response
