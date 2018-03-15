@@ -4,9 +4,7 @@ use simple_server::Server;
 
 #[test]
 fn test_server_new() {
-    Server::new(|_request, mut response| {
-        Ok(response.body("Hello Rust!".as_bytes())?)
-    });
+    Server::new(|_request, mut response| Ok(response.body("Hello Rust!".as_bytes())?));
 }
 
 #[test]

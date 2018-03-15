@@ -15,8 +15,7 @@ pub enum Error {
     InvalidUri(http::uri::InvalidUri),
     /// The request timed out.
     Timeout,
-    #[doc(hidden)]
-    RequestIncomplete,
+    #[doc(hidden)] RequestIncomplete,
     /// The request's size (headers + body) exceeded the application's limit.
     RequestTooLarge,
     /// The connection was closed while reading the request.

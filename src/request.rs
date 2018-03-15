@@ -35,9 +35,9 @@ pub(super) fn read<'request, S: Read>(
                     return Err(e.into());
                 }
 
-                if timeout.is_some() &&
-                    elapsed_milliseconds(&start_time) >
-                        duration_to_milliseconds(&timeout.unwrap())
+                if timeout.is_some()
+                    && elapsed_milliseconds(&start_time)
+                        > duration_to_milliseconds(&timeout.unwrap())
                 {
                     return Err(Error::Timeout);
                 }
@@ -145,10 +145,10 @@ mod server_should {
                     }
                 };
 
-                self.bytes_read += read as _;
+                self.bytes_read += read as usize;
                 self.read_count += 1;
 
-                Ok(read as _)
+                Ok(read as usize)
             }
         }
     }
