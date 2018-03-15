@@ -1,17 +1,28 @@
 language: rust
+
 sudo: false
+
 cache:
   cargo
-rust:
-  - 1.20.0
-  - stable
-  - beta
-  - nightly
-before_install:
-  - bash ./ci-scripts/rustfmt.sh
+
+# this is a long way of saying, "please test 1.20.0, stable, beta, and nightly, but run rustfmt only on stable"
+matrix:
+  include:
+  - rust: "1.20.0"
+    env: RUN_RUSTFMT=false
+  - rust: "stable"
+    env: RUN_RUSTFMT=true
+  - rust: "beta"
+    env: RUN_RUSTFMT=false
+  - rust: "nightly"
+    env: RUN_RUSTFMT=false
+  allow_failures:
+    # bugs may affect nightly; test so we're aware, but don't fail the build
+    - rust: nightly
+
+before_script:
+  - if [ "${RUN_RUSTFMT}" = "true" ]; then rustup component add rustfmt-preview; fi
 
 script:
-  - cargo fmt -- --write-mode diff
-matrix:
-  allow_failures:
-    - rust: nightly
+  - cargo test
+  - if [ "${RUN_RUSTFMT}" = "true" ]; then cargo fmt -- --write-mode diff; fi
