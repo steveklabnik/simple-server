@@ -57,8 +57,7 @@ pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Reques
 fn build_request(mut req: parsing::Request) -> Result<Request<Vec<u8>>, Error> {
     let mut http_req = Request::builder();
 
-    let method = req.method.ok_or(Error::MissingRequestMethod)?;
-    http_req.method(method);
+    http_req.method(req.method());
 
     for header in req.headers() {
         http_req.header(header.name, header.value);
@@ -173,7 +172,8 @@ mod server_should {
 
     #[test]
     fn parse_method_correctly() {
-        let req = read(PUT_REQUEST, None)
+        let mut s = ChunkStream::new(PUT_REQUEST);
+        let req = read(&mut s, None)
             .expect("Failed to parse PUT request.");
         assert_eq!(Method::PUT, *req.method());
     }

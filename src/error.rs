@@ -20,8 +20,6 @@ pub enum Error {
     RequestTooLarge,
     /// The connection was closed while reading the request.
     ConnectionClosed,
-    /// The method of the request is missing.
-    MissingRequestMethod,
 }
 
 impl From<std::io::Error> for Error {
