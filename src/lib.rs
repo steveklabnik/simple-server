@@ -50,23 +50,26 @@ use std::borrow::Cow;
 
 mod error;
 mod request;
+mod parsing;
 
 pub use error::Error;
 
-pub type Handler<T> =
-    Box<Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error> + 'static + Send + Sync>;
+pub type ResponseResult = Result<Response<Vec<u8>>, Error>;
+
+pub type Handler =
+    Box<Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync>;
 
 /// A web server.
 ///
 /// This is the core type of this crate, and is used to create a new
 /// server and listen for connections.
-pub struct Server<T> {
-    handler: Handler<T>,
+pub struct Server {
+    handler: Handler,
     timeout: Option<Duration>,
     static_directory: PathBuf,
 }
 
-impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
+impl Server {
     /// Constructs a new server with the given handler.
     ///
     /// The handler function is called on all requests.
@@ -90,16 +93,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     /// }
     /// ```
-    pub fn new<H>(handler: H) -> Server<T>
+    pub fn new<H>(handler: H) -> Server
     where
-        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-            + Send
-            + Sync
-            + 'static,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -133,16 +133,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::with_timeout(Duration::from_secs(5), |request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     /// }
     /// ```
-    pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
+    pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server
     where
-        H: Fn(Request<&[u8]>, ResponseBuilder) -> Result<Response<T>, Error>
-            + Send
-            + Sync
-            + 'static,
+        H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync,
     {
         Server {
             handler: Box::new(handler),
@@ -171,23 +168,62 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///
     /// fn main() {
     ///     let server = Server::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
     ///     });
     ///
     ///     server.listen("127.0.0.1", "7979");
     /// }
     /// ```
-    pub fn listen(&self, host: &str, port: &str) {
-        const READ_TIMEOUT_MS: u64 = 20;
-        let num_threads = self.pool_size();
-        let mut pool = Pool::new(num_threads);
+    pub fn listen(&self, host: &str, port: &str) -> ! {
         let listener =
             TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
 
         info!("Server started at http://{}:{}", host, port);
 
-        for stream in listener.incoming() {
+        self.listen_on_socket(listener)
+    }
+
+    /// Tells the server to listen on a provided `TcpListener`.
+    ///
+    /// A threadpool is created, and used to handle connections.
+    /// The pool size is four threads.
+    ///
+    /// This method blocks forever.
+    ///
+    /// This method will also serve static files out of a `public` directory
+    /// in the same directory as where it's run. If someone tries a path
+    /// directory traversal attack, this will return a `404`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    /// use std::net::TcpListener;
+    ///
+    /// fn main() {
+    ///     let listener = TcpListener::bind(("127.0.0.1", 7979))
+    ///         .expect("Error starting the server.");
+    ///
+    ///     let server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
+    ///     });
+    ///
+    ///     server.listen_on_socket(listener);
+    /// }
+    /// ```
+    pub fn listen_on_socket(&self, listener: TcpListener) -> ! {
+        const READ_TIMEOUT_MS: u64 = 20;
+        let num_threads = self.pool_size();
+        let mut pool = Pool::new(num_threads);
+        let mut incoming = listener.incoming();
+
+        loop {
+            // Incoming is an endless iterator, so it's okay to unwrap on it.
+            let stream = incoming.next().unwrap();
             let stream = stream.expect("Error handling TCP stream.");
+
             stream
                 .set_read_timeout(Some(Duration::from_millis(READ_TIMEOUT_MS)))
                 .expect("FATAL: Couldn't set read timeout on socket");
@@ -218,9 +254,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     }
 
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
-        let mut buffer = [0; 512];
-
-        let request = match request::read(&mut buffer, &mut stream, self.timeout) {
+        let request = match request::read(&mut stream, self.timeout) {
             Err(Error::ConnectionClosed) | Err(Error::Timeout) | Err(Error::HttpParse(_)) => {
                 return Ok(())
             }
@@ -273,7 +307,14 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
         }
 
         match (self.handler)(request, response_builder) {
-            Ok(response) => Ok(write_response(response, stream)?),
+            Ok(mut response) => {
+                let len = response.body().len().to_string();
+                response.headers_mut().insert(
+                    http::header::CONTENT_LENGTH,
+                    http::header::HeaderValue::from_str(&len).unwrap(),
+                );
+                Ok(write_response(response, stream)?)
+            }
             Err(_) => {
                 let mut response_builder = Response::builder();
                 response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
