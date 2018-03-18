@@ -141,13 +141,6 @@ impl Server {
     where
         H: Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync,
     {
-        // TODO: doctest!
-        /*
-        let server = Server::with_timeout(Duration::from_secs(5), Box::new(|request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
-    ///     }));
-        */
-
         Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
