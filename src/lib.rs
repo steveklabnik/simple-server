@@ -132,9 +132,12 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     /// use simple_server::Server;
     ///
     /// fn main() {
-    ///     let server = Server::with_timeout(Duration::from_secs(5), |request, mut response| {
-    ///         Ok(response.body("Hello, world!".as_bytes())?)
-    ///     });
+    ///     let server = Server::with_timeout(
+    ///         Duration::from_secs(5),
+    ///         Box::new(|request, mut response| {
+    ///             Ok(response.body("Hello, World!".as_bytes())?)
+    ///         }),
+    ///     );
     /// }
     /// ```
     pub fn with_timeout<H>(timeout: Duration, handler: H) -> Server<T>
@@ -177,17 +180,56 @@ impl<'a, T: Into<Cow<'a, [u8]>>> Server<T> {
     ///     server.listen("127.0.0.1", "7979");
     /// }
     /// ```
-    pub fn listen(&self, host: &str, port: &str) {
-        const READ_TIMEOUT_MS: u64 = 20;
-        let num_threads = self.pool_size();
-        let mut pool = Pool::new(num_threads);
-        let listener =
-            TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
+    pub fn listen(&self, host: &str, port: &str) -> ! {
+        let listener = TcpListener::bind(format!("{}:{}", host, port))
+            .expect("Error starting the server.");
 
         info!("Server started at http://{}:{}", host, port);
 
-        for stream in listener.incoming() {
+        self.listen_on_socket(listener)
+    }
+
+    /// Tells the server to listen on a provided `TcpListener`.
+    ///
+    /// A threadpool is created, and used to handle connections.
+    /// The pool size is four threads.
+    ///
+    /// This method blocks forever.
+    ///
+    /// This method will also serve static files out of a `public` directory
+    /// in the same directory as where it's run. If someone tries a path
+    /// directory traversal attack, this will return a `404`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    /// use std::net::TcpListener;
+    ///
+    /// fn main() {
+    ///     let listener = TcpListener::bind(("127.0.0.1", 7979))
+    ///         .expect("Error starting the server.");
+    ///
+    ///     let server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes())?)
+    ///     });
+    ///
+    ///     server.listen_on_socket(listener);
+    /// }
+    /// ```
+    pub fn listen_on_socket(&self, listener: TcpListener) -> ! {
+        const READ_TIMEOUT_MS: u64 = 20;
+        let num_threads = self.pool_size();
+        let mut pool = Pool::new(num_threads);
+        let mut incoming = listener.incoming();
+
+        loop {
+            // Incoming is an endless iterator, so it's okay to unwrap on it.
+            let stream = incoming.next().unwrap();
             let stream = stream.expect("Error handling TCP stream.");
+
             stream
                 .set_read_timeout(Some(Duration::from_millis(READ_TIMEOUT_MS)))
                 .expect("FATAL: Couldn't set read timeout on socket");
