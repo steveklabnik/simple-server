@@ -173,8 +173,7 @@ mod server_should {
     #[test]
     fn parse_method_correctly() {
         let mut s = ChunkStream::new(PUT_REQUEST);
-        let req = read(&mut s, None)
-            .expect("Failed to parse PUT request.");
+        let req = read(&mut s, None).expect("Failed to parse PUT request.");
         assert_eq!(Method::PUT, *req.method());
     }
 }
