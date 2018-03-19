@@ -1,5 +1,7 @@
 use httparse;
 
+struct RequestMethodIndices(usize, usize);
+
 struct RequestProtocolIndices {
     path: (usize, usize),
 }
@@ -10,6 +12,7 @@ struct HeaderIndices {
 }
 
 pub struct Request {
+    method: RequestMethodIndices,
     proto: RequestProtocolIndices,
     headers: Vec<HeaderIndices>,
     body: (usize, usize),
@@ -27,6 +30,10 @@ impl Request {
         let (start, _) = self.body;
         self.body = (start, start);
         body
+    }
+
+    pub fn method(&self) -> &str {
+        ::std::str::from_utf8(&self.buffer[self.method.0..self.method.1]).unwrap()
     }
 
     pub fn path(&self) -> &str {
@@ -84,9 +91,12 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
                     path: slice_indices(&*buffer, r.path.unwrap().as_bytes()),
                 };
 
-                (r, proto, n)
+                let method = slice_indices(&*buffer, r.method.unwrap().as_bytes());
+                let method = RequestMethodIndices(method.0, method.1);
+
+                (r, method, proto, n)
             })
-            .map(|(r, proto, n)| {
+            .map(|(r, method, proto, n)| {
                 let headers = r.headers
                     .iter()
                     .map(
@@ -101,12 +111,13 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
                         },
                     )
                     .collect::<Vec<_>>();
-                (proto, headers, n)
+                (method, proto, headers, n)
             })
     };
 
-    if let Some((proto, headers, n)) = result {
+    if let Some((method, proto, headers, n)) = result {
         return Ok(ParseResult::Complete(Request {
+            method: method,
             proto: proto,
             headers: headers,
             body: slice_indices(&*buffer, &buffer[n..]),
