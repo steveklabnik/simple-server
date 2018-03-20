@@ -40,6 +40,7 @@ pub use http::response::Builder as ResponseBuilder;
 use scoped_threadpool::Pool;
 
 use std::env;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
@@ -67,6 +68,16 @@ pub struct Server {
     handler: Handler,
     timeout: Option<Duration>,
     static_directory: PathBuf,
+}
+
+impl fmt::Debug for Server {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Server {{ timeout: {:?}, static_directory: {:?} }}",
+            self.timeout, self.static_directory
+        )
+    }
 }
 
 impl Server {
@@ -104,7 +115,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: None,
-            static_directory: PathBuf::from("."),
+            static_directory: PathBuf::from("public"),
         }
     }
 
@@ -144,7 +155,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
-            static_directory: PathBuf::from("."),
+            static_directory: PathBuf::from("public"),
         }
     }
 
@@ -155,9 +166,15 @@ impl Server {
     ///
     /// This method blocks forever.
     ///
-    /// The `listen` method will also serve static files out of a `public`
-    /// directory in the same directory as where it's run. If someone tries
-    /// a path directory traversal attack, this will return a `404`.
+    /// The `listen` method will also serve static files. By default, that
+    /// directory is "public" in the same directory as where it's run. If you'd like to change
+    /// this default, please see the `set_static_directory` method.
+    ///
+    /// If someone tries a path directory traversal attack, this will return a
+    /// `404`. Please note that [this is a best effort][best effort] at the
+    /// moment.
+    ///
+    /// [best effort]: https://github.com/steveklabnik/simple-server/issues/54
     ///
     /// # Examples
     ///
@@ -237,6 +254,29 @@ impl Server {
         }
     }
 
+    /// Sets the proper directory for serving static files.
+    ///
+    /// By default, the server will serve static files inside a `public`
+    /// directory. This method lets you set a path to whatever location
+    /// you'd like.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let mut server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
+    ///     });
+    ///
+    ///     server.set_static_directory("/var/www/");
+    ///
+    ///     server.listen("127.0.0.1", "7979");
+    /// }
+    /// ```
     pub fn set_static_directory<P: Into<PathBuf>>(&mut self, path: P) {
         self.static_directory = path.into();
     }
@@ -276,7 +316,7 @@ impl Server {
         let mut response_builder = Response::builder();
 
         // first, we serve static files
-        let fs_path = format!("public{}", request.uri());
+        let fs_path = request.uri().to_string();
 
         // ... you trying to do something bad?
         if fs_path.contains("./") || fs_path.contains("../") {
@@ -291,7 +331,8 @@ impl Server {
             return Ok(());
         }
 
-        let fs_path = self.static_directory.join(fs_path);
+        // the uri always includes a leading /, which means that join will over-write the static directory...
+        let fs_path = self.static_directory.join(&fs_path[1..]);
 
         if Path::new(&fs_path).is_file() {
             let mut f = File::open(&fs_path)?;
