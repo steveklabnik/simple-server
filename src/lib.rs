@@ -254,6 +254,29 @@ impl Server {
         }
     }
 
+    /// Sets the proper directory for serving static files.
+    ///
+    /// By default, the server will serve static files inside a `public`
+    /// directory. This method lets you set a path to whatever location
+    /// you'd like.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let mut server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
+    ///     });
+    ///
+    ///     server.set_static_directory("/var/www/");
+    ///
+    ///     server.listen("127.0.0.1", "7979");
+    /// }
+    /// ```
     pub fn set_static_directory<P: Into<PathBuf>>(&mut self, path: P) {
         self.static_directory = path.into();
     }
