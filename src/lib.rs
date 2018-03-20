@@ -40,6 +40,7 @@ pub use http::response::Builder as ResponseBuilder;
 use scoped_threadpool::Pool;
 
 use std::env;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
@@ -67,6 +68,16 @@ pub struct Server {
     handler: Handler,
     timeout: Option<Duration>,
     static_directory: PathBuf,
+}
+
+impl fmt::Debug for Server {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Server {{ timeout: {:?}, static_directory: {:?} }}",
+            self.timeout, self.static_directory
+        )
+    }
 }
 
 impl Server {
