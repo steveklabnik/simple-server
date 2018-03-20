@@ -104,7 +104,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: None,
-            static_directory: PathBuf::from("."),
+            static_directory: PathBuf::from("public"),
         }
     }
 
@@ -144,7 +144,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
-            static_directory: PathBuf::from("."),
+            static_directory: PathBuf::from("public"),
         }
     }
 
@@ -155,9 +155,15 @@ impl Server {
     ///
     /// This method blocks forever.
     ///
-    /// The `listen` method will also serve static files out of a `public`
-    /// directory in the same directory as where it's run. If someone tries
-    /// a path directory traversal attack, this will return a `404`.
+    /// The `listen` method will also serve static files. By default, that
+    /// directory is "public" in the same directory as where it's run. If you'd like to change
+    /// this default, please see the `set_static_directory` method.
+    ///
+    /// If someone tries a path directory traversal attack, this will return a
+    /// `404`. Please note that [this is a best effort][best effort] at the
+    /// moment.
+    ///
+    /// [best effort]: https://github.com/steveklabnik/simple-server/issues/54
     ///
     /// # Examples
     ///
@@ -276,7 +282,7 @@ impl Server {
         let mut response_builder = Response::builder();
 
         // first, we serve static files
-        let fs_path = format!("public{}", request.uri());
+        let fs_path = request.uri().to_string();
 
         // ... you trying to do something bad?
         if fs_path.contains("./") || fs_path.contains("../") {
@@ -291,7 +297,8 @@ impl Server {
             return Ok(());
         }
 
-        let fs_path = self.static_directory.join(fs_path);
+        // the uri always includes a leading /, which means that join will over-write the static directory...
+        let fs_path = self.static_directory.join(&fs_path[1..]);
 
         if Path::new(&fs_path).is_file() {
             let mut f = File::open(&fs_path)?;
