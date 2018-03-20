@@ -176,6 +176,21 @@ impl Server {
     ///
     /// [best effort]: https://github.com/steveklabnik/simple-server/issues/54
     ///
+    /// # Panics
+    ///
+    /// There are several circumstances in which `listen` can currently panic:
+    ///
+    /// * If there's an error [constructing a TcpListener][constructing], generally if the port
+    ///    or host is incorrect. See `TcpListener`'s docs for more.
+    /// * If the connection fails, see [`incoming`'s docs] for more.
+    ///
+    /// Finally, if reading from the stream fails. Timeouts and connection closes
+    /// are handled, other errors may result in a panic. This will only take down
+    /// one of the threads in the threadpool, rather than the whole server.
+    ///
+    /// [constructing]: https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.bind
+    /// [`incoming`'s docs]: https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.incoming
+    ///
     /// # Examples
     ///
     /// ```no_run
