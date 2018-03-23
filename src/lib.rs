@@ -364,8 +364,18 @@ impl Server {
         if let Some(ref static_directory) = self.static_directory {
             let fs_path = request.uri().to_string();
 
+            // the uri always includes a leading /, which means that join will over-write the static directory...
+            let fs_path = PathBuf::from(&fs_path[1..]);
+
             // ... you trying to do something bad?
-            if fs_path.contains("./") || fs_path.contains("../") {
+            let traversal_attempt = fs_path.components().any(|component| {
+                match component {
+                    std::path::Component::Normal(_) => false,
+                    _ => true,
+                }
+            });
+
+            if traversal_attempt {
                 // GET OUT
                 response_builder.status(StatusCode::NOT_FOUND);
 
@@ -377,8 +387,7 @@ impl Server {
                 return Ok(());
             }
 
-            // the uri always includes a leading /, which means that join will over-write the static directory...
-            let fs_path = static_directory.join(&fs_path[1..]);
+            let fs_path = self.static_directory.join(fs_path);
 
             if Path::new(&fs_path).is_file() {
                 let mut f = File::open(&fs_path)?;
