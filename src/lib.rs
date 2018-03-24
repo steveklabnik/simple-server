@@ -47,7 +47,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use std::borrow::Cow;
+use std::borrow::Borrow;
 
 mod error;
 mod request;
@@ -363,14 +363,7 @@ impl Server {
         }
 
         match (self.handler)(request, response_builder) {
-            Ok(mut response) => {
-                let len = response.body().len().to_string();
-                response.headers_mut().insert(
-                    http::header::CONTENT_LENGTH,
-                    http::header::HeaderValue::from_str(&len).unwrap(),
-                );
-                Ok(write_response(response, stream)?)
-            }
+            Ok(response) => Ok(write_response(response, stream)?),
             Err(_) => {
                 let mut response_builder = Response::builder();
                 response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
@@ -385,36 +378,38 @@ impl Server {
     }
 }
 
-fn write_response<'a, T: Into<Cow<'a, [u8]>>, S: Write>(
+fn write_response<T: Borrow<[u8]>, S: Write>(
     response: Response<T>,
     mut stream: S,
 ) -> Result<(), Error> {
-    let headers = response
-        .headers()
-        .iter()
-        .fold(String::new(), |builder, (k, v)| {
-            format!("{}{}: {}\r\n", builder, k.as_str(), v.to_str().unwrap())
-        });
+    use fmt::Write;
 
-    let text = format!(
-        "HTTP/1.1 {} {}\r\n{}\r\n",
-        response.status().as_str(),
-        response
-            .status()
+    let (parts, body) = response.into_parts();
+    let body: &[u8] = body.borrow();
+
+    let mut text = format!(
+        "HTTP/1.1 {} {}\r\n",
+        parts.status.as_str(),
+        parts
+            .status
             .canonical_reason()
             .expect("Unsupported HTTP Status"),
-        headers,
     );
+
+    if !parts.headers.contains_key(http::header::CONTENT_LENGTH) {
+        write!(text, "content-length: {}\r\n", body.len()).unwrap();
+    }
+    for (k, v) in parts.headers.iter() {
+        write!(text, "{}: {}\r\n", k.as_str(), v.to_str().unwrap()).unwrap();
+    }
+
+    write!(text, "\r\n").unwrap();
+
     stream.write(text.as_bytes())?;
-
-    let body: Cow<'a, [u8]> = {
-        let (_, body) = response.into_parts();
-        body.into()
-    };
-
-    stream.write(&*body)?;
+    stream.write(body)?;
     Ok(stream.flush()?)
 }
+
 #[test]
 fn test_write_response() {
     let mut builder = http::response::Builder::new();
@@ -423,7 +418,11 @@ fn test_write_response() {
 
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
-    let expected = b"HTTP/1.1 200 OK\r\ncontent-type: text/plain\r\n\r\nHello rust";
+    let expected = b"HTTP/1.1 200 OK\r\n\
+        content-length: 10\r\n\
+        content-type: text/plain\r\n\
+        \r\n\
+        Hello rust";
     assert_eq!(&expected[..], &output[..]);
 }
 
@@ -434,6 +433,9 @@ fn test_write_response_no_headers() {
 
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
-    let expected = b"HTTP/1.1 200 OK\r\n\r\nHello rust";
+    let expected = b"HTTP/1.1 200 OK\r\n\
+        content-length: 10\r\n\
+        \r\n\
+        Hello rust";
     assert_eq!(&expected[..], &output[..]);
 }
