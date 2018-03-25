@@ -30,6 +30,7 @@ extern crate http;
 extern crate httparse;
 extern crate num_cpus;
 extern crate scoped_threadpool;
+extern crate time;
 
 pub use http::Request;
 pub use http::response::{Builder, Parts, Response};
@@ -396,6 +397,10 @@ fn write_response<T: Borrow<[u8]>, S: Write>(
             .expect("Unsupported HTTP Status"),
     );
 
+    if !parts.headers.contains_key(http::header::DATE) {
+        let date = time::strftime("%a, %d %b %Y %H:%M:%S GMT", &time::now_utc()).unwrap();
+        write!(text, "date: {}\r\n", date).unwrap();
+    }
     if !parts.headers.contains_key(http::header::CONTENT_LENGTH) {
         write!(text, "content-length: {}\r\n", body.len()).unwrap();
     }
@@ -414,12 +419,14 @@ fn write_response<T: Borrow<[u8]>, S: Write>(
 fn test_write_response() {
     let mut builder = http::response::Builder::new();
     builder.status(http::StatusCode::OK);
+    builder.header(http::header::DATE, "Thu, 01 Jan 1970 00:00:00 GMT");
     builder.header(http::header::CONTENT_TYPE, "text/plain".as_bytes());
 
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
     let expected = b"HTTP/1.1 200 OK\r\n\
         content-length: 10\r\n\
+        date: Thu, 01 Jan 1970 00:00:00 GMT\r\n\
         content-type: text/plain\r\n\
         \r\n\
         Hello rust";
@@ -429,12 +436,16 @@ fn test_write_response() {
 #[test]
 fn test_write_response_no_headers() {
     let mut builder = http::response::Builder::new();
+    // Well, no headers besides the date ;) Otherwise, we wouldn't know
+    // what `expected` should be.
+    builder.header(http::header::DATE, "Thu, 01 Jan 1970 00:00:00 GMT");
     builder.status(http::StatusCode::OK);
 
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
     let expected = b"HTTP/1.1 200 OK\r\n\
         content-length: 10\r\n\
+        date: Thu, 01 Jan 1970 00:00:00 GMT\r\n\
         \r\n\
         Hello rust";
     assert_eq!(&expected[..], &output[..]);
