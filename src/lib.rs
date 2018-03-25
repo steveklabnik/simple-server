@@ -401,6 +401,9 @@ fn write_response<T: Borrow<[u8]>, S: Write>(
         let date = time::strftime("%a, %d %b %Y %H:%M:%S GMT", &time::now_utc()).unwrap();
         write!(text, "date: {}\r\n", date).unwrap();
     }
+    if !parts.headers.contains_key(http::header::CONNECTION) {
+        write!(text, "connection: close\r\n").unwrap();
+    }
     if !parts.headers.contains_key(http::header::CONTENT_LENGTH) {
         write!(text, "content-length: {}\r\n", body.len()).unwrap();
     }
@@ -425,6 +428,7 @@ fn test_write_response() {
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
     let expected = b"HTTP/1.1 200 OK\r\n\
+        connection: close\r\n\
         content-length: 10\r\n\
         date: Thu, 01 Jan 1970 00:00:00 GMT\r\n\
         content-type: text/plain\r\n\
@@ -444,6 +448,7 @@ fn test_write_response_no_headers() {
     let mut output = vec![];
     let _ = write_response(builder.body("Hello rust".as_bytes()).unwrap(), &mut output).unwrap();
     let expected = b"HTTP/1.1 200 OK\r\n\
+        connection: close\r\n\
         content-length: 10\r\n\
         date: Thu, 01 Jan 1970 00:00:00 GMT\r\n\
         \r\n\
