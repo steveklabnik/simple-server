@@ -67,7 +67,7 @@ pub type Handler =
 pub struct Server {
     handler: Handler,
     timeout: Option<Duration>,
-    static_directory: PathBuf,
+    static_directory: Option<PathBuf>,
 }
 
 impl fmt::Debug for Server {
@@ -115,7 +115,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: None,
-            static_directory: PathBuf::from("public"),
+            static_directory: Some(PathBuf::from("public")),
         }
     }
 
@@ -155,7 +155,7 @@ impl Server {
         Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
-            static_directory: PathBuf::from("public"),
+            static_directory: Some(PathBuf::from("public")),
         }
     }
 
@@ -293,7 +293,36 @@ impl Server {
     /// }
     /// ```
     pub fn set_static_directory<P: Into<PathBuf>>(&mut self, path: P) {
-        self.static_directory = path.into();
+        self.static_directory = Some(path.into());
+    }
+
+    /// Disables serving static files.
+    ///
+    /// By default, the server will serve static files inside a `public`
+    /// directory, or the directory set by `set_static_directory`. This
+    /// method lets you disable this.
+    ///
+    /// It can be re-enabled by a subsequent call to `set_static_directory`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// extern crate simple_server;
+    ///
+    /// use simple_server::Server;
+    ///
+    /// fn main() {
+    ///     let mut server = Server::new(|request, mut response| {
+    ///         Ok(response.body("Hello, world!".as_bytes().to_vec())?)
+    ///     });
+    ///
+    ///     server.dont_serve_static_files();
+    ///
+    ///     server.listen("127.0.0.1", "7979");
+    /// }
+    /// ```
+    pub fn dont_serve_static_files(&mut self) {
+        self.static_directory = None;
     }
 
     // Try and fetch the environment variable SIMPLESERVER_THREADS and parse it as a u32.
@@ -331,35 +360,37 @@ impl Server {
         let mut response_builder = Response::builder();
 
         // first, we serve static files
-        let fs_path = request.uri().to_string();
+        if let Some(ref static_directory) = self.static_directory {
+            let fs_path = request.uri().to_string();
 
-        // ... you trying to do something bad?
-        if fs_path.contains("./") || fs_path.contains("../") {
-            // GET OUT
-            response_builder.status(StatusCode::NOT_FOUND);
+            // ... you trying to do something bad?
+            if fs_path.contains("./") || fs_path.contains("../") {
+                // GET OUT
+                response_builder.status(StatusCode::NOT_FOUND);
 
-            let response = response_builder
-                .body("<h1>404</h1><p>Not found!<p>".as_bytes())
-                .unwrap();
+                let response = response_builder
+                    .body("<h1>404</h1><p>Not found!<p>".as_bytes())
+                    .unwrap();
 
-            write_response(response, stream)?;
-            return Ok(());
-        }
+                write_response(response, stream)?;
+                return Ok(());
+            }
 
-        // the uri always includes a leading /, which means that join will over-write the static directory...
-        let fs_path = self.static_directory.join(&fs_path[1..]);
+            // the uri always includes a leading /, which means that join will over-write the static directory...
+            let fs_path = static_directory.join(&fs_path[1..]);
 
-        if Path::new(&fs_path).is_file() {
-            let mut f = File::open(&fs_path)?;
+            if Path::new(&fs_path).is_file() {
+                let mut f = File::open(&fs_path)?;
 
-            let mut source = Vec::new();
+                let mut source = Vec::new();
 
-            f.read_to_end(&mut source)?;
+                f.read_to_end(&mut source)?;
 
-            let response = response_builder.body(source)?;
+                let response = response_builder.body(source)?;
 
-            write_response(response, stream)?;
-            return Ok(());
+                write_response(response, stream)?;
+                return Ok(());
+            }
         }
 
         match (self.handler)(request, response_builder) {
