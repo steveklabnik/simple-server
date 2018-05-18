@@ -5,8 +5,8 @@ extern crate log;
 extern crate http;
 extern crate simple_server;
 
-use simple_server::Server;
 use http::header;
+use simple_server::Server;
 
 fn main() {
     env_logger::init().unwrap();
