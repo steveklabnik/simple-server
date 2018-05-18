@@ -1,7 +1,7 @@
+use super::Request;
+use error::Error;
 use std::io::{self, Read};
 use std::time::{Duration, Instant};
-use error::Error;
-use super::Request;
 
 use parsing;
 

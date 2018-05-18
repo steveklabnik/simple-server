@@ -33,10 +33,10 @@ extern crate scoped_threadpool;
 extern crate time;
 
 pub use http::Request;
-pub use http::response::{Builder, Parts, Response};
-pub use http::status::{InvalidStatusCode, StatusCode};
 pub use http::method::Method;
 pub use http::response::Builder as ResponseBuilder;
+pub use http::response::{Builder, Parts, Response};
+pub use http::status::{InvalidStatusCode, StatusCode};
 
 use scoped_threadpool::Pool;
 
@@ -51,8 +51,8 @@ use std::time::Duration;
 use std::borrow::Borrow;
 
 mod error;
-mod request;
 mod parsing;
+mod request;
 
 pub use error::Error;
 
@@ -368,11 +368,9 @@ impl Server {
             let fs_path = PathBuf::from(&fs_path[1..]);
 
             // ... you trying to do something bad?
-            let traversal_attempt = fs_path.components().any(|component| {
-                match component {
-                    std::path::Component::Normal(_) => false,
-                    _ => true,
-                }
+            let traversal_attempt = fs_path.components().any(|component| match component {
+                std::path::Component::Normal(_) => false,
+                _ => true,
             });
 
             if traversal_attempt {
@@ -387,7 +385,7 @@ impl Server {
                 return Ok(());
             }
 
-            let fs_path = self.static_directory.join(fs_path);
+            let fs_path = static_directory.join(fs_path);
 
             if Path::new(&fs_path).is_file() {
                 let mut f = File::open(&fs_path)?;
