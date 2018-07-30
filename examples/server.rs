@@ -7,7 +7,7 @@ extern crate simple_server;
 use simple_server::Server;
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let host = "127.0.0.1";
     let port = "7878";
