@@ -32,11 +32,11 @@ extern crate num_cpus;
 extern crate scoped_threadpool;
 extern crate time;
 
-pub use http::Request;
 pub use http::method::Method;
 pub use http::response::Builder as ResponseBuilder;
 pub use http::response::{Builder, Parts, Response};
 pub use http::status::{InvalidStatusCode, StatusCode};
+pub use http::Request;
 
 use scoped_threadpool::Pool;
 
