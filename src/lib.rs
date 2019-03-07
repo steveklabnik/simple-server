@@ -251,7 +251,7 @@ impl Server {
     ///     server.listen_on_socket(listener);
     /// }
     /// ```
-    pub fn listen_on_socket(&self, listener: TcpListener) -> ! {
+    pub fn listen_on_socket(&self, listener: TcpListener)  {
         const READ_TIMEOUT_MS: u64 = 20;
         let num_threads = self.pool_size();
         let mut pool = Pool::new(num_threads);
@@ -259,7 +259,7 @@ impl Server {
 
         loop {
             // check if shutdown received
-            if shutdown.load(Ordering::SeqCst) {
+            if self.shutdown.load(Ordering::SeqCst) {
                 return;
             }
             // Incoming is an endless iterator, so it's okay to unwrap on it.
