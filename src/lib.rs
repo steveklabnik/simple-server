@@ -71,7 +71,7 @@ pub struct Server {
     handler: Handler,
     timeout: Option<Duration>,
     static_directory: Option<PathBuf>,
-    shutdown: Arc<AtomicBool>,
+    pub shutdown: Arc<AtomicBool>,
 }
 
 impl fmt::Debug for Server {
