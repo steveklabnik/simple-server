@@ -212,7 +212,7 @@ impl Server {
     ///     server.listen("127.0.0.1", "7979");
     /// }
     /// ```
-    pub fn listen(&self, host: &str, port: &str) -> ! {
+    pub fn listen(&self, host: &str, port: &str)  {
         let listener =
             TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
 
