@@ -120,7 +120,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: None,
             static_directory: Some(PathBuf::from("public")),
-            shutdown: AtomicBool::new(false)
+            shutdown: Arc::new(AtomicBool::new(false))
         }
     }
 
@@ -161,7 +161,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
             static_directory: Some(PathBuf::from("public")),
-            shutdown: AtomicBool::new(false)
+            shutdown: Arc::new(AtomicBool::new(false))
         }
     }
 
