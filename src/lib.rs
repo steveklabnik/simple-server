@@ -46,9 +46,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool,Ordering};
+use std::time::Duration;
 
 use std::borrow::Borrow;
 
@@ -120,7 +120,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: None,
             static_directory: Some(PathBuf::from("public")),
-            shutdown: Arc::new(AtomicBool::new(false))
+            shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -161,7 +161,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
             static_directory: Some(PathBuf::from("public")),
-            shutdown: Arc::new(AtomicBool::new(false))
+            shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -212,7 +212,7 @@ impl Server {
     ///     server.listen("127.0.0.1", "7979");
     /// }
     /// ```
-    pub fn listen(&self, host: &str, port: &str)  {
+    pub fn listen(&self, host: &str, port: &str) {
         let listener =
             TcpListener::bind(format!("{}:{}", host, port)).expect("Error starting the server.");
 
@@ -251,7 +251,7 @@ impl Server {
     ///     server.listen_on_socket(listener);
     /// }
     /// ```
-    pub fn listen_on_socket(&self, listener: TcpListener)  {
+    pub fn listen_on_socket(&self, listener: TcpListener) {
         const READ_TIMEOUT_MS: u64 = 20;
         let num_threads = self.pool_size();
         let mut pool = Pool::new(num_threads);
@@ -350,7 +350,7 @@ impl Server {
     fn handle_connection(&self, mut stream: TcpStream) -> Result<(), Error> {
         let request = match request::read(&mut stream, self.timeout) {
             Err(Error::ConnectionClosed) | Err(Error::Timeout) | Err(Error::HttpParse(_)) => {
-                return Ok(())
+                return Ok(());
             }
 
             Err(Error::RequestTooLarge) => {

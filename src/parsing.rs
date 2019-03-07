@@ -95,7 +95,8 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
                 let method = RequestMethodIndices(method.0, method.1);
 
                 (r, method, proto, n)
-            }).map(|(r, method, proto, n)| {
+            })
+            .map(|(r, method, proto, n)| {
                 let headers = r
                     .headers
                     .iter()
@@ -109,7 +110,8 @@ pub fn try_parse_request(buffer: Vec<u8>) -> Result<ParseResult, httparse::Error
                                 value: slice_indices(&*buffer, value),
                             }
                         },
-                    ).collect::<Vec<_>>();
+                    )
+                    .collect::<Vec<_>>();
                 (method, proto, headers, n)
             })
     };
