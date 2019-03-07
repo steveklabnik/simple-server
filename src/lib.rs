@@ -47,6 +47,8 @@ use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool,Ordering};
 
 use std::borrow::Borrow;
 
@@ -69,6 +71,7 @@ pub struct Server {
     handler: Handler,
     timeout: Option<Duration>,
     static_directory: Option<PathBuf>,
+    shutdown: Arc<AtomicBool>,
 }
 
 impl fmt::Debug for Server {
@@ -117,6 +120,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: None,
             static_directory: Some(PathBuf::from("public")),
+            shutdown: AtomicBool::new(false)
         }
     }
 
@@ -157,6 +161,7 @@ impl Server {
             handler: Box::new(handler),
             timeout: Some(timeout),
             static_directory: Some(PathBuf::from("public")),
+            shutdown: AtomicBool::new(false)
         }
     }
 
@@ -253,6 +258,10 @@ impl Server {
         let mut incoming = listener.incoming();
 
         loop {
+            // check if shutdown received
+            if shutdown.load(Ordering::SeqCst) {
+                return;
+            }
             // Incoming is an endless iterator, so it's okay to unwrap on it.
             let stream = incoming.next().unwrap();
             let stream = stream.expect("Error handling TCP stream.");
