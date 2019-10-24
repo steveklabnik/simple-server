@@ -343,6 +343,9 @@ impl Server {
             Err(Error::ConnectionClosed) | Err(Error::Timeout) | Err(Error::HttpParse(_)) => {
                 return Ok(())
             }
+            Err(Error::Io(ref io_error)) if io_error.kind() == std::io::ErrorKind::BrokenPipe => {
+                return Ok(())
+            }
 
             Err(Error::RequestTooLarge) => {
                 let resp = Response::builder()
