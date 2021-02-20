@@ -12,12 +12,12 @@ categories = ["web-programming"]
 travis-ci = { repository = "steveklabnik/simple-server" }
 
 [dependencies]
-http = "0.1.0"
-httparse = "1.2.3"
-log = "0.3"
+http = "0"
+httparse = "1"
+log = "0"
 num_cpus = "1"
-scoped_threadpool = "0.1.7"
+scoped_threadpool = "0"
 time = "0.1"
 
 [dev-dependencies]
-env_logger = "0.3"
+env_logger = "0"

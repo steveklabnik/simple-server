@@ -29,7 +29,7 @@ pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Reques
                 match parsing::try_parse_request(mem::replace(&mut buffer, vec![]))? {
                     parsing::ParseResult::Complete(r) => break r,
                     parsing::ParseResult::Partial(b) => {
-                        mem::replace(&mut buffer, b);
+                        let _old = mem::replace(&mut buffer, b);
                         continue;
                     }
                 }
@@ -57,10 +57,10 @@ pub fn read<S: Read>(stream: &mut S, timeout: Option<Duration>) -> Result<Reques
 fn build_request(mut req: parsing::Request) -> Result<Request<Vec<u8>>, Error> {
     let mut http_req = Request::builder();
 
-    http_req.method(req.method());
+    http_req = http_req.method(req.method());
 
     for header in req.headers() {
-        http_req.header(header.name, header.value);
+        http_req = http_req.header(header.name, header.value);
     }
 
     let mut request = http_req.body(req.split_body())?;
