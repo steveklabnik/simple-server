@@ -59,7 +59,7 @@ pub use error::Error;
 pub type ResponseResult = Result<Response<Vec<u8>>, Error>;
 
 pub type Handler =
-    Box<Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync>;
+    Box<dyn Fn(Request<Vec<u8>>, ResponseBuilder) -> ResponseResult + 'static + Send + Sync>;
 
 /// A web server.
 ///
@@ -375,7 +375,7 @@ impl Server {
 
             if traversal_attempt {
                 // GET OUT
-                response_builder.status(StatusCode::NOT_FOUND);
+                response_builder = response_builder.status(StatusCode::NOT_FOUND);
 
                 let response = response_builder
                     .body("<h1>404</h1><p>Not found!<p>".as_bytes())
@@ -404,10 +404,8 @@ impl Server {
         match (self.handler)(request, response_builder) {
             Ok(response) => Ok(write_response(response, stream)?),
             Err(_) => {
-                let mut response_builder = Response::builder();
-                response_builder.status(StatusCode::INTERNAL_SERVER_ERROR);
-
-                let response = response_builder
+                let response = Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
                     .body("<h1>500</h1><p>Internal Server Error!<p>".as_bytes())
                     .unwrap();
 
